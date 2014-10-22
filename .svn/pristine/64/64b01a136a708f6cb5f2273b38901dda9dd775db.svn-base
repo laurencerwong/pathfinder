@@ -1,0 +1,110 @@
+//
+//  GameplayScene.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/4/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+//
+//  GameplayScene.m
+//  cocox2d-box2d
+//
+//  Created by Keith DeRuiter on 9/22/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "GameplayScene.h"
+#import "CharacterObject.h"
+
+@implementation GameplayScene
+
+@synthesize tileMapLayer = tileMapLayer_;
+@synthesize spriteLayer = spriteLayer_;
+@synthesize uiLayer = uiLayer_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        [UIApplication sharedApplication].statusBarHidden = YES;
+        self.tileMapLayer = [TileMapLayer node];
+        self.spriteLayer = [SpriteLayer node];
+        self.uiLayer = [UILayer node];
+        self.spriteLayer.tileMapLayer = self.tileMapLayer;
+        [self.spriteLayer initializeTileMap];
+        [self.spriteLayer initializeCamera];
+        
+        [self addChild:self.tileMapLayer];
+        [self addChild:self.spriteLayer];
+        [self addChild:self.uiLayer z:5];
+
+        [self.tileMapLayer runAction:[CCFollow actionWithTarget:self.spriteLayer.camera]];
+        [self.spriteLayer runAction:[CCFollow actionWithTarget:self.spriteLayer.camera]];
+        
+        previousSimulatorState = TacticalState;
+        [self scheduleUpdate];
+    }
+    return self;
+}
+
+-(void) update:(ccTime)delta
+{
+    //check for phase change
+    SimulatorStates currentSimulatorState = [Simulator sharedSimulator].simulatorState;
+    if(currentSimulatorState != previousSimulatorState) {
+        previousSimulatorState = currentSimulatorState;
+        [self simulatorPhaseChangedTo:currentSimulatorState];
+    }
+    //
+    
+    if([[self spriteLayer] currentlySelectedCharacter] == NULL)
+    {
+        [self.uiLayer hideBars];
+        [self.uiLayer hideStatsPanel];
+    }
+    else
+    {
+        CharacterObject *tempPlayer = [[self spriteLayer]currentlySelectedCharacter];
+        [self.uiLayer showBarsWith:[tempPlayer currentHealth] AndMaxHealth:[tempPlayer maxHealth] AndCurrentActionPoints:[tempPlayer currentActionPoints] AndMaxActionPoints:[tempPlayer maxActionPoints]];
+        [self.uiLayer showStatsPanelForCharacterObject:tempPlayer];
+    }
+    [self.tileMapLayer update:delta];
+    
+    //give the spritelayer the buttons that were pressed
+    self.spriteLayer.buttonsPressed = [self.uiLayer getButtonsPressed];
+    
+    //End the turn
+    if(self.spriteLayer.buttonsPressed & EndTurnButton) {
+        [self.spriteLayer endTurn];
+    }
+    [self.spriteLayer update:delta];
+    [self.uiLayer setMenuBackgroundColor:[self.spriteLayer currentPlayerColor]];
+}
+
+-(void) simulatorPhaseChangedTo:(SimulatorStates)newState
+{
+    switch (newState) {
+        case TacticalState:
+            QuietLog(@"New Simulator State: Tactical");
+            [self.uiLayer showPlayerTurnLabel:self.spriteLayer.currentPlayerID];
+            [self.spriteLayer focusOnFirstUnitForCurrentPlayer];
+            break;
+        case PreSimState:
+            QuietLog(@"New Simulator State: PreSim");
+            break;
+        case CombatState:
+            QuietLog(@"New Simulator State: Combat");
+            break;
+        default:
+            QuietLog(@"Unknown New Simulator State!");
+            break;
+    }
+}
+
++(CCScene*) scene
+{
+    return [self node];
+}
+
+@end

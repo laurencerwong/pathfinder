@@ -1,0 +1,74 @@
+//
+//  CharacterObject.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "GameObject.h"
+#import "cocos2d.h"
+#import "Stats.h"
+#import "WaitingForOrder.h"
+#import "Equipment.h"
+#import "Action.h"
+
+@interface CharacterObject : GameObject
+{
+    Equipment *e1, *e2, *currentEquipment_;
+    AIState *currentState;
+    Stats *stats_;
+    Action *action_;
+    CCPointArray *touchPath_;
+    NSMutableArray *distancesBetweenPoints;
+    NSMutableArray *speedArray;
+    float desiredSpeed;
+    float range;
+    int currentHealth_;
+    int currentPoints_;
+    int playerID_;
+    BOOL hasFinishedMoving_;
+    BOOL isSelected_;
+
+    //temp label
+    CCLabelTTF *myNumber;
+    //end temp
+    
+    //Pre Simulation Variables
+    CGPoint currentPreSimPosition;
+    int lastKnownControlPointIndex;
+    float lastTime;
+    float lastRemainingDistance;
+}
+
+@property (nonatomic,readwrite,retain) CCPointArray *touchPath;
+@property (nonatomic, readonly, retain) Equipment *currentEquipment;
+@property (nonatomic, retain) Action *action;
+@property (nonatomic, retain) Stats *stats;
+@property BOOL isSelected;
+@property BOOL hasFinishedMoving;
+@property int currentHealth;
+@property int playerID;
+
+//temp code begin
+@property CGPoint preSimPoint;
+//temp code end
+
+-(BOOL)hasAlreadyMoved;
++(int)characterObjectWithFile:(NSString *)filename AndPlayerID:(int)inPlayerID;
+-(int)initializeWithFile:(NSString *)filename AndPlayerID:(int)inPlayerID;
+-(BOOL)hasCollisionWith:(CharacterObject *)character;
+-(BOOL)hasPreCollisionWith:(CharacterObject *)character;
+-(void)generateSpline;
+-(void)setPositionToTime:(float)t;
+-(void)resetPath;
+-(void)startMovement;
+-(void)setState:(AIState *)newState;
+-(void)setToBeIdle;
+-(BOOL)makeAccuracyCheckWithPlayer:(CharacterObject *)character;
+//for debug
+-(float)getRange;
+-(int)maxHealth;
+-(int)maxActionPoints;
+
+@end

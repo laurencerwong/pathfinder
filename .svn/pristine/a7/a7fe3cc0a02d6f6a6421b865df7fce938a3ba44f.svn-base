@@ -1,0 +1,331 @@
+//
+//  AStarPathfinding.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/24/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "AStarPathfinding.h"
+#import "QuietLog.h"
+
+@implementation AStarPathfinding
+
+@synthesize tileMapLayer = tileMapLayer_;
+
++(AStarPathfinding*) sharedPathfinder {
+    static AStarPathfinding *sharedPathfinder = nil;
+    @synchronized(self) {
+        if (sharedPathfinder == nil)
+            sharedPathfinder = [[self alloc] init];
+    }
+    return sharedPathfinder;
+}
+
+- (NSArray *)getTraverseableNeighborsForTileCoord:(CGPoint)tileCoord
+{
+    if(tileMapLayer_ == nil) {
+        return nil;
+    }
+    
+	NSMutableArray *neighbors = [NSMutableArray arrayWithCapacity:8];
+    
+    BOOL t = NO;
+    BOOL l = NO;
+    BOOL b = NO;
+    BOOL r = NO;
+    
+	// Top Neighbor
+	CGPoint p = ccp(tileCoord.x, tileCoord.y - 1);
+	if ([self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+        t = YES;
+	}
+    
+	// Left Neighbor
+	p = ccp(tileCoord.x - 1, tileCoord.y);
+	if ([self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+        l = YES;
+	}
+    
+	// Bottom Neighbor
+	p = ccp(tileCoord.x, tileCoord.y + 1);
+	if ([self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+        b = YES;
+	}
+    
+	// Right Neighbor
+	p = ccp(tileCoord.x + 1, tileCoord.y);
+	if ([self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+        r = YES;
+	}
+    
+    
+	// Top Left Neighbor
+	p = ccp(tileCoord.x - 1, tileCoord.y - 1);
+	if (t && l && [self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+	}
+    
+	// Bottom Left Neighbor
+	p = ccp(tileCoord.x - 1, tileCoord.y + 1);
+	if (b && l && [self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+	}
+    
+	// Top Right Neighbor
+	p = ccp(tileCoord.x + 1, tileCoord.y - 1);
+	if (t && r && [self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+	}
+    
+	// Bottom Right Neighbor
+	p = ccp(tileCoord.x + 1, tileCoord.y + 1);
+	if (b && r && [self.tileMapLayer isValidTileCoord:p] && ![self.tileMapLayer isTileCollidable:p]) {
+		[neighbors addObject:[NSValue valueWithCGPoint:p]];
+	}
+    
+	return [NSArray arrayWithArray:neighbors];
+}
+
+- (NSMutableArray*)computePathFrom:(CGPoint)origin To:(CGPoint)target
+{
+    NSMutableArray *openQueue;
+    NSMutableArray *closedQueue;
+    NSMutableArray *shortestPath;
+    
+    
+	// Init shortest path properties
+	openQueue = [NSMutableArray array];
+	closedQueue = [NSMutableArray array];
+	shortestPath = [NSMutableArray array];
+	
+	// Get current tile coordinate and desired tile coord
+	CGPoint fromTileCoord = [self.tileMapLayer tileCoordForPosition:origin];
+    CGPoint toTileCoord = [self.tileMapLayer tileCoordForPosition:target];
+	
+    QuietLog(@"Going from tile:(%f, %f) to tile:(%f, %f)", fromTileCoord.x, fromTileCoord.y, toTileCoord.x, toTileCoord.y);
+    
+	// Check that there is a path to compute
+	if (CGPointEqualToPoint(fromTileCoord, toTileCoord)) {
+		return nil;
+	}
+    
+	// Start by adding the from position to the open list
+    //    [self insertNode:[[Node alloc] initWithPosition:fromTileCoord]
+    //         InOpenQueue:openQueue];
+    [openQueue addObject:[[Node alloc] initWithPosition:fromTileCoord]];
+	
+	do {
+		// Get the lowest F cost node
+		// Because the list is ordered, the first node is always the one with the lowest F cost
+		Node *currentNode = [openQueue objectAtIndex:0];
+        [openQueue removeObjectAtIndex:0];
+        
+        //QuietLog(@"Expanding Node: %@", currentNode);
+        
+		// Add the current step to the closed set
+		[closedQueue addObject:currentNode];
+		
+		// If the currentStep is at the desired tile coordinate, we have done
+		if (CGPointEqualToPoint(currentNode.position, toTileCoord)) {
+            //Walk back along the nodes
+            Node *temp = currentNode;
+            do {
+                if (temp.parent != nil) { // you don't add origin position
+                    [shortestPath insertObject:temp atIndex:0]; // Insert at index 0 to reverse the path
+                }
+                temp = temp.parent; // Go backward
+            } while (temp != nil);  // Until we get nil parent, which means we hit the start of the path
+			openQueue = nil;        // Set to nil to release unused memory
+			closedQueue = nil;      // Set to nil to release unused memory
+			break;
+		}
+		
+		// Get the adjacent tiles coord of the current step
+		NSArray *neighborNodes = [self getTraverseableNeighborsForTileCoord:currentNode.position];
+        NSMutableArray *mutableNeighborNodes = [NSMutableArray arrayWithArray:neighborNodes];
+        //        for(Node *n in openQueue)
+        //        {
+        //            for(NSValue *nn in neighborNodes)
+        //            {
+        //                if(CGPointEqualToPoint(n.position, nn.CGPointValue))
+        //                {
+        //                    [mutableNeighborNodes removeObject:nn];
+        //                }
+        //            }
+        //        }
+        //        for(Node *n in closedQueue)
+        //        {
+        //            for(NSValue *nn in neighborNodes)
+        //            {
+        //                if(CGPointEqualToPoint(n.position, nn.CGPointValue))
+        //                {
+        //                    [mutableNeighborNodes removeObject:nn];
+        //                }
+        //            }
+        //        }
+		for (NSValue *v in neighborNodes) {
+            
+			Node *child = [[Node alloc] initWithPosition:[v CGPointValue]];
+			
+            ExploreState e = [self checkAlreadyExplored:child OpenQueue:openQueue ClosedQueue:closedQueue];
+            
+            if(e == Unexplored) {
+                child.parent = currentNode;
+                [openQueue addObject:child];
+            } else if(e == Open) {
+                Node *nodeToRemove = nil, *nodeToAdd = nil;
+				for(Node *n in openQueue) {
+					if(CGPointEqualToPoint(n.position, child.position)) {	//If they refer to the same place
+						//if cost child < cost n, replace n wth child
+						if(child.cost + child.heuristic < n.cost + n.heuristic) {
+							nodeToRemove = n;
+							nodeToAdd = child;
+						}
+					}
+				}
+				if(nodeToRemove != nil) {
+					[openQueue removeObject:nodeToRemove];
+				}
+				if(nodeToAdd != nil) {
+					[self insertNode:child InOpenQueue:openQueue];
+				}
+            } else if(e == Closed) {
+				//if it is already in closed
+				for(int j = 0; j < closedQueue.count; j++) {
+					Node *n = [closedQueue objectAtIndex:j];
+					if(CGPointEqualToPoint(n.position, child.position)) {	//If they refer to the same place
+						//if cost child < cost n, replace n wth child
+						if(child.cost + child.heuristic < n.cost + n.heuristic) {
+							[closedQueue removeObject:n];
+							[self insertNode:child InOpenQueue:openQueue];
+						}
+					}
+				}
+			}
+            
+            //=======
+            /*
+			// Check if the step isn't already in the closed set
+			if ([closedQueue containsObject:child]) {
+				//[node release]; // Release to not waste memory
+				continue; // Ignore it
+			}
+			
+			// Compute the cost form the current step to that step
+			float moveCost = [self costToMoveFromNode:currentNode toAdjacentNode:child];
+			
+			// Check if the step is already in the open list
+			//NSUInteger index = [openQueue indexOfObject:node];
+            BOOL inOpen = NO;
+            int index = 0;
+            for(;index < openQueue.count; index++)
+            {
+                Node *n = [openQueue objectAtIndex:index];
+                if(CGPointEqualToPoint(n.position, child.position))
+                {
+                    inOpen = YES;
+                    break;
+                }
+            }
+            
+            
+			
+			if (!inOpen) { // Not on the open list, so add it
+				
+				// Set node fields
+				child.parent = currentNode;
+				child.cost = currentNode.cost + moveCost;
+				child.heuristic = [self computeHeuristicFromCoord:child.position toCoord:toTileCoord];
+				[self insertNode:child InOpenQueue:openQueue];
+				
+				// Done, now release the node
+				//[node release];
+			}
+			else { // Already in the open list
+				
+				//[node release]; // Release the freshly created one
+				child = [openQueue objectAtIndex:index]; // To retrieve the old one (which has its scores already computed ;-)
+				
+				// Check to see if the G score for that step is lower if we use the current step to get there
+				if ((currentNode.cost + moveCost) < child.cost) {
+					child.cost = currentNode.cost + moveCost;
+					
+					// We have to retain it before removing it from the list so it doesn't automatically release
+					//[node retain];
+					
+					//Remove and re-insert to put the node in sorted position, since f may have changed
+					[openQueue removeObjectAtIndex:index];
+					[self insertNode:child InOpenQueue:openQueue];
+					
+					//[node release]; 	// Now we can release it because the ordered list retains it
+				}
+			}*/
+		}
+        
+		
+	} while ([openQueue count] > 0);
+	if (shortestPath == nil) { // No path found
+		QuietLog(@"No Path Found");
+        return nil;
+	} else {
+        [shortestPath retain];
+        return shortestPath;
+    }
+}
+
+-(ExploreState) checkAlreadyExplored:(Node*)node OpenQueue:(NSArray*)openQueue ClosedQueue:(NSArray*)closedQueue
+{
+    for(Node *n in openQueue) {
+        if(CGPointEqualToPoint(n.position, node.position)) {
+            return Open;
+        }
+    }
+    for(Node *n in closedQueue) {
+        if(CGPointEqualToPoint(n.position, node.position)) {
+            return Closed;
+        }
+    }
+    return Unexplored;
+}
+
+// Insert a node in the ordered open node queue
+- (void)insertNode:(Node*)node InOpenQueue:(NSMutableArray*)openQueue
+{
+	float nodeFScore = [node fCost]; // Compute only once the step F score's
+	int count = [openQueue count];
+    int i = 0;
+	for(; i < count; i++) {
+		if (nodeFScore <= [[openQueue objectAtIndex:i] fCost]) { // if the step F score's is lower or equals to the step at index i
+			// Then we found the index at which we have to insert the new step
+			break;
+		}
+	}
+    [openQueue insertObject:node atIndex:i];
+}
+
+// Compute the heuristic from a position to another (from the current position to the final desired position)
+- (int)computeHeuristicFromCoord:(CGPoint)fromCoord toCoord:(CGPoint)toCoord
+{
+	// Here we use the Manhattan method, which calculates the total number of step moved horizontally and vertically to reach the
+	// final desired step from the current step, ignoring any obstacles that may be in the way
+	//return abs(toCoord.x - fromCoord.x) + abs(toCoord.y - fromCoord.y);
+
+    //Euclidean
+    return ccpDistance(fromCoord, toCoord);
+}
+
+// Compute the cost of moving from one node to a neighbor node
+- (int)costToMoveFromNode:(Node *)fromNode toAdjacentNode:(Node *)toNode
+{
+	return ((fromNode.position.x != toNode.position.x) && (fromNode.position.y != toNode.position.y)) ? 14 : 10;
+}
+
+
+
+
+@end

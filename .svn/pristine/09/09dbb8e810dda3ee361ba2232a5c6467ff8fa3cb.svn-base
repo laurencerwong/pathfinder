@@ -1,0 +1,168 @@
+//
+//  UILayer.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/8/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "UILayer.h"
+#import "QuietLog.h"
+
+@implementation UILayer
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.touchEnabled = YES;
+        CGSize s = [[CCDirector sharedDirector] winSize];
+        spaceBetweenMenuItems = 2;
+        
+        menuBackground = [CCSprite spriteWithFile:@"menuBackgroundBar.png"];
+        [self addChild:menuBackground];
+        menuBackground.position = ccp(s.width/2, menuBackground.contentSize.height/2);
+        
+        menu = [[CCMenu alloc] init];
+        menu.position = ccp(0,10);
+        
+        [self initButtons];
+        [self initBars];
+        
+        [self addChild:menu];
+    }
+    return self;
+}
+
+-(void) initBars
+{
+    healthBar = [ProgressTimerWithBackground progressWithSprite:[CCSprite spriteWithFile:@"HealthBar.png"] AndBackground:[CCSprite spriteWithFile:@"BarBackground.png"]];
+    healthBar.position = ccp([healthBar contentSize].width/2 + 20, [healthBar contentSize].height/2 + 25);
+    actionPointBar = [ProgressTimerWithBackground progressWithSprite:[CCSprite spriteWithFile:@"ManaBar.png"] AndBackground:[CCSprite spriteWithFile:@"BarBackground.png"]];
+    actionPointBar.position = ccp([actionPointBar contentSize].width/2 + 20, [actionPointBar contentSize].height/2 + 0);
+    
+    [self addChild:healthBar];
+    [self addChild:actionPointBar];
+}
+
+-(void)updateEndTurnButton:(NSString *)text
+{
+    //endTurnButton.text.string = text;
+}
+
+-(void) initButtons
+{
+    endTurnButton = [ButtonWithContent ButtonWithText:@"End Turn" NormalImage:@"unpressedEndTurnButton.png" SelectedImage:@"pressedEndTurnButton.png" Target:self Selector:@selector(buttonPressed:)];
+    endTurnButton.tag = EndTurnButton;
+    endTurnButton.position = ccp([[CCDirector sharedDirector] winSize].width/2, endTurnButton.contentSize.height/2);
+    [menu addChild:endTurnButton];
+    
+    ButtonWithContent *undo = [ButtonWithContent ButtonWithIcon:@"undoButtonIcon.png" NormalImage:@"unpressedMenuButton.png" SelectedImage:@"pressedMenuButton.png" Target:self Selector:@selector(buttonPressed:)];
+    undo.tag = UndoButton;
+    [self pushMenuItem:undo];
+
+    ButtonWithContent *combatMoveButton = [ButtonWithContent ButtonWithIcon:@"combatButtonIcon.png" NormalImage:@"unpressedMenuButton.png" SelectedImage:@"pressedMenuButton.png" Target:self Selector:@selector(buttonPressed:)];
+    combatMoveButton.tag = CombatMoveButton;
+    [self pushMenuItem:combatMoveButton];
+ 
+    ButtonWithContent *useEquipment = [ButtonWithContent  ButtonWithNoContent:@"unpressedMenuButton.png" selectedImage:@"pressedMenuButton.png" target:self selector:@selector(buttonPressed:)];
+    useEquipment.tag = UseEquipmentButton;
+    [self pushMenuItem:useEquipment];
+}
+
+-(void)pushMenuItem:(CCMenuItemImage*)inItem
+{
+    //"Push" menu item onto menu from right
+    CGSize s = [[CCDirector sharedDirector] winSize];
+    [menu addChild:inItem];
+    menuItemXOffset = menuItemXOffset + [inItem contentSize].width + spaceBetweenMenuItems;
+    float inItemXPosition = s.width - menuItemXOffset;
+    inItem.position = ccp(inItemXPosition, [inItem contentSize].height/2);
+}
+
+/*
+-(void) registerWithTouchDispatcher {
+    //the lower the touch priority the faster it gets the touch
+    [[CCDirector sharedDirector].touchDispatcher addTargetedDelegate:self priority:-10 swallowsTouches:YES];
+}
+ */
+
+-(int) getButtonsPressed
+{
+    int tempButtonsPressed = buttonsPressed_;
+    buttonsPressed_ = 0;
+    return tempButtonsPressed;
+}
+
+-(void) scaleNewButton:(CCMenuItemImage *)inMenuItem
+{
+    for(CCMenuItem *cmi in [menu children])
+    {
+        if([cmi tag] != inMenuItem.tag)
+        {
+            cmi.scale = 1.0;
+            
+            if([cmi position].x > inMenuItem.position.x)
+            {
+                cmi.position = ccp(cmi.position.x + inMenuItem.contentSize.width / 3, cmi.position.y);
+            }
+            else
+            {
+                cmi.position = ccp(cmi.position.x - inMenuItem.contentSize.width / 3, cmi.position.y);
+            }
+        }
+        else
+        {
+            cmi.scale = 1.5;
+            cmi.position = ccp(cmi.position.x, cmi.position.y + cmi.contentSize.height / 4);
+        }
+    }
+}
+
+-(void)buttonPressed:(id)sender
+{
+    CCMenuItemImage *pressedButton = (CCMenuItemImage*)sender;
+    buttonsPressed_ = pressedButton.tag;
+    [self scaleNewButton:pressedButton];
+}
+
+-(BOOL)ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    BOOL shouldSwallowTouch = NO;
+    //if it hits a button, then return yes
+    QuietLog(@"UILAYER CHECKING TOUCH");
+    CCArray *menuChildren = [menu children];
+    for(CCMenuItemImage *item in menuChildren)
+    {
+        if(item.isSelected)
+        {
+            shouldSwallowTouch = YES;
+        }
+    }
+    return shouldSwallowTouch;
+}
+-(void)ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    
+}
+-(void)ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    
+}
+-(void) showBarsWith:(int)currentHealth AndMaxHealth:(int)maxHealth AndCurrentActionPoints:(int)currentActionPoints AndMaxActionPoints:(int)maxActionPoints
+{
+    healthBar.text.string = [NSString stringWithFormat:@"%d/%d", maxHealth, currentHealth];
+    actionPointBar.text.string = [NSString stringWithFormat:@"%d/%d", maxActionPoints, currentActionPoints];
+    healthBar.visible = YES;
+    actionPointBar.visible = YES;
+}
+-(void)hideBars
+{
+    healthBar.visible = NO;
+    actionPointBar.visible = NO;
+}
+- (void)dealloc
+{
+    [menu dealloc];
+    [super dealloc];
+}
+@end

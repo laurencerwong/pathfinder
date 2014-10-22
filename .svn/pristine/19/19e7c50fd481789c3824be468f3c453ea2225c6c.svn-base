@@ -1,0 +1,159 @@
+//
+//  TileMapLayer.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import "TileMapLayer.h"
+#import "QuietLog.h"
+
+@implementation TileMapLayer
+
+@synthesize tileMap = tileMap_;
+@synthesize background = background_;
+@synthesize meta = meta_;
+
+// Helper class method that creates a Scene with the HelloWorldLayer as the only child.
++(CCScene *) scene
+{
+	// 'scene' is an autorelease object.
+	CCScene *scene = [CCScene node];
+    
+	// 'layer' is an autorelease object.
+	TileMapLayer *layer = [TileMapLayer node];
+    
+	// add layer as a child to scene
+	[scene addChild: layer];
+    
+	// return the scene
+	return scene;
+}
+
+-(id) init
+{
+	if( (self=[super init]) ) {
+        [self setupTileMapForLevel:1];
+        
+        [self initializeFastTraversableGrid];
+    }
+    return self;
+}
+
+-(void) setupTileMapForLevel:(int)level
+{
+    if(self.tileMap != nil) {
+        [self removeChild:self.tileMap cleanup:YES];
+    }
+    
+    if(level == 0) {    //Tutorial
+        tileMap_ = [CCTMXTiledMap tiledMapWithTMXFile:@"tutorial.tmx"];
+    } else if(level == 1) {
+//        tileMap_ = [CCTMXTiledMap tiledMapWithTMXFile:@"bigtiledesert.tmx"];
+        tileMap_ = [CCTMXTiledMap tiledMapWithTMXFile:@"bigtiledesert.tmx"];
+    }
+    
+    
+    self.background = [self.tileMap layerNamed:@"Background"];
+    self.meta = [self.tileMap layerNamed:@"Meta"];
+    self.meta.visible = YES;
+    
+    [self addChild:self.tileMap z:-1];
+}
+
+-(void) updateTutorial:(ccTime)delta
+{
+    [self update:delta];
+}
+
+-(CGPoint) tileCoordForPosition:(CGPoint)position {
+    position = ccpMult(position, CC_CONTENT_SCALE_FACTOR());
+    
+    int x = (position.x) / self.tileMap.tileSize.width;
+    int y = ((self.tileMap.mapSize.height * self.tileMap.tileSize.height) - (position.y)) / self.tileMap.tileSize.height; //Flips to account for (0,0) being in top left in tile coordinates.
+    //QuietLog(@"Got TileMap Coord (%d, %d) for position: (%.2f, %.2f)", x, y, position.x, position.y);
+    
+    return ccp(x, y);
+}
+
+- (BOOL)isValidTileCoord:(CGPoint)tileCoord {
+    if (tileCoord.x < 0 || tileCoord.y < 0 ||
+        tileCoord.x >= self.tileMap.mapSize.width ||
+        tileCoord.y >= self.tileMap.mapSize.height) {
+        return FALSE;
+    } else {
+        return TRUE;
+    }
+}
+
+- (CGPoint)positionForTileCoord:(CGPoint)tileCoord {
+    int x = (tileCoord.x * self.tileMap.tileSize.width) + self.tileMap.tileSize.width/2;
+    int y = (self.tileMap.mapSize.height * self.tileMap.tileSize.height) - (tileCoord.y * self.tileMap.tileSize.height) - self.tileMap.tileSize.height/2;
+    return ccp(x/CC_CONTENT_SCALE_FACTOR(), y/CC_CONTENT_SCALE_FACTOR());
+}
+
+-(BOOL)isProp:(NSString*)prop atTileCoord:(CGPoint)tileCoord forLayer:(CCTMXLayer *)layer {
+    if (![self isValidTileCoord:tileCoord]) {
+        return NO;
+    }
+    int tileGid = [layer tileGIDAt:tileCoord];
+    NSDictionary * properties = [self.tileMap propertiesForGID:tileGid];
+    
+    if (properties == nil) {
+        return NO;
+    }
+    return [properties objectForKey:prop] != nil;
+}
+
+-(BOOL) isTileCollidable:(CGPoint)tileCoord
+{
+//    QuietLog(@"Checking collidable slow...");
+    BOOL collideable = NO;
+    if([self isValidTileCoord:tileCoord])
+    {
+        int tileGid = [self.meta tileGIDAt:tileCoord];
+        if (tileGid) {
+            NSDictionary *properties = [self.tileMap propertiesForGID:tileGid];
+            if (properties) {
+                NSString *collision = properties[@"Collidable"];
+                if (collision && [collision isEqualToString:@"True"]) {
+                    collideable = YES;
+                }
+            }
+        }
+    }
+    return collideable;
+}
+
+-(void) initializeFastTraversableGrid
+{
+    if(self.tileMap == nil) {
+        QuietLog(@"TileMap is nil, cannot initialize fast traversable grid");
+        return;
+    }
+    
+    int mapWidth = self.tileMap.mapSize.width;
+    int mapHeight = self.tileMap.mapSize.height;
+    
+    //Set up grid
+    traversableGrid = malloc(mapWidth * sizeof(int*));
+    for(int i = 0; i < mapWidth; i++) {
+        traversableGrid[i] = malloc(mapHeight * sizeof(int));
+    }
+    
+    for(int i = 0; i < mapWidth; i++) {
+        for(int j = 0; j < mapHeight; j++) {
+            traversableGrid[i][j] = ( [self isTileCollidable:ccp(i, j)] ? 1 : 0);   //set grid to be 1 if space was collideable
+        }
+    }
+}
+
+-(BOOL) isTileCollidableFast:(CGPoint)tileCoord
+{
+//    QuietLog(@"Checking collidable fast...");
+    return traversableGrid[(int)tileCoord.x][(int)tileCoord.y] == 1;
+}
+
+@end
+

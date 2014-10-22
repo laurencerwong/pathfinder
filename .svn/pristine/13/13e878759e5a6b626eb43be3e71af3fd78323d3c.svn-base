@@ -1,0 +1,41 @@
+//
+//  UILayer.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/8/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "cocos2d.h"
+#import "Buttons.h"
+#import "ProgressTimerWithBackground.h"
+#import "ButtonWithContent.h"
+#import "CharacterObject.h"
+#import "CharacterStatsPanel.h"
+
+@interface UILayer : CCLayer
+{
+    int spaceBetweenMenuItems;
+    int menuItemXOffset;
+    int buttonsPressed_;
+    ButtonWithContent *endTurnButton;
+    CCMenu *menu;
+    CCSprite *menuBackground;
+    ProgressTimerWithBackground *healthBar;
+    ProgressTimerWithBackground *actionPointBar;
+    
+    CCLabelTTF *playerTurnLabel;
+    
+    CharacterStatsPanel *statsPanel;
+}
+
+-(int) getButtonsPressed;
+-(void) hideBars;
+-(void) showBarsWith:(int)currentHealth AndMaxHealth:(int)maxHealth AndCurrentActionPoints:(int)currentActionPoints AndMaxActionPoints:(int)maxActionPoints;
+-(void) updateEndTurnButton:(NSString *)text;
+-(void) showPlayerTurnLabel:(int)playerNumber;
+-(void) hidePlayerTurnLabel;
+-(void) showStatsPanelForCharacterObject:(CharacterObject*)character;
+-(void) hideStatsPanel;
+
+@end

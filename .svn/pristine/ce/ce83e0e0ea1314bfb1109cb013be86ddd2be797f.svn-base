@@ -1,0 +1,22 @@
+//
+//  ButtonsPressed.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/8/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#ifndef cocos2d_normal_ButtonsPressed_h
+#define cocos2d_normal_ButtonsPressed_h
+
+typedef enum ButtonsDown : NSInteger{
+    Move        =   1 << 0,
+    CombatMove  =   1 << 1,
+    UseEquip    =   1 << 2,
+    ChangeEquip =   1 << 3,
+    Undo        =   1 << 4,
+    EndTurn     =   1 << 5
+    
+} ButtonsDown;
+
+#endif

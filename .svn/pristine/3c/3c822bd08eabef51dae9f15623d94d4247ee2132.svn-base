@@ -1,0 +1,24 @@
+//
+//  Quadtree.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/6/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "cocos2d.h"
+
+@interface Quadtree : NSObject
+{
+    int maxObjects;
+    NSMutableArray *objects; //all objects
+    NSMutableArray *nodes; //array of quadtrees
+    CGRect bounds;
+    int level;
+    
+}
++(id)quadtreeAtLevel:(int)inLevel withBounds:(CGRect)inRect;
+-(void)clear;
+-(void)insert:(CGRect)inRect;
+@end

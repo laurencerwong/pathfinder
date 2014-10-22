@@ -1,0 +1,28 @@
+//
+//  Simulator.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "CCLayer.h"
+#import "Battle.h"
+#import "CharacterObject.h"
+
+@interface Simulator : NSObject
+{
+    NSMutableDictionary *gameObjects;
+    int nextActionerID;
+    NSMutableArray *battles;
+    
+    CCLayer *currentLayerToAddThingsTo_;
+}
+
+@property (nonatomic,readwrite,retain) CCLayer *currentLayerToAddThingsTo;
+
++(Simulator *)sharedSimulator;
+-(GameObject *)getGameObject:(int)inActionerID;
+-(int)addGameObject:(GameObject *)inGameObject;
+-(void)addBattle:(int)inActionerID1 with:(int)inActionerID2;
+@end

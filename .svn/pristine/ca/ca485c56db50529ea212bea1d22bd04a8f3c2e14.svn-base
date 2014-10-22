@@ -1,0 +1,41 @@
+//
+//  OnGuard.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/9/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "OnGuard.h"
+#import "CharacterObject.h"
+#import "Simulator.h"
+#import "Combat.h"
+
+@implementation OnGuard
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+
+    myCharacterObject = inCharacterObject;
+    QuietLog(@"Character %d entered onGuard", [myCharacterObject actionerID]);
+
+}
+
+-(void)update:(ccTime)delta
+{
+    /*
+    CharacterObject *collidingCharacter = [[Simulator sharedSimulator] getNearestCollidingCharacterTo:myCharacterObject];
+    if(collidingCharacter)
+    {
+        [myCharacterObject setState:[[Combat alloc] init]];
+    }
+     */
+}
+
+-(void)onExit
+{
+    
+}
+
+
+@end

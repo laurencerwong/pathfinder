@@ -1,0 +1,77 @@
+//
+//  ButtonWithText.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/11/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "ButtonWithContent.h"
+#import "CCRenderTexture.h"
+#import "CGPointExtension.h"
+#import "cocos2d.h"
+
+@implementation ButtonWithContent
+@synthesize content = content_;
+
+
++(id)ButtonWithText:(NSString *)text NormalImage:(NSString *)normalImage SelectedImage:(NSString *)selectedImage Target:(id)target Selector:(SEL)selector
+{
+    return [[self alloc] initWithText:text NormalImage:normalImage SelectedImage:selectedImage Target:target Selector:selector];
+}
+
+- (id)initWithText:(NSString *)text NormalImage:(NSString *)normalImage SelectedImage:(NSString *)selectedImage Target:(id)target Selector:(SEL)selector
+{
+    self = [super initWithNormalImage:normalImage selectedImage:selectedImage disabledImage:normalImage target:target selector:selector];
+    if (self) {
+        self.content = [CCLabelTTF labelWithString:text fontName:@"Marker Felt" fontSize:15];
+        self.content.position = CGPointMake(self.contentSize.width/2, self.contentSize.height/2);
+        [self addChild: self.content];
+    }
+    return self;
+}
+
++(id)ButtonWithIcon:(NSString *)fileName NormalImage:(NSString *)normalImage SelectedImage:(NSString *)selectedImage Target:(id)target Selector:(SEL)selector
+{
+    return [[self alloc] initWithIcon:fileName NormalImage:normalImage SelectedImage:selectedImage DisabledImage:normalImage Target:target Selector:selector];
+}
+-(id)initWithIcon:(NSString *)iconFile NormalImage:(NSString *)normalImage SelectedImage:(NSString *)selectedImage DisabledImage:(NSString *)disabledImage Target:(id)target Selector:(SEL)selector
+{
+    self = [super initWithTarget:target selector:selector];
+    if (self) {
+        self.normalImage = [self superImposeImage:iconFile OnTopOf:normalImage];
+        self.selectedImage = [self superImposeImage:iconFile OnTopOf:selectedImage];
+        self.disabledImage = [self superImposeImage:iconFile OnTopOf:normalImage];
+    }
+    return self;
+}
+
+-(CCSprite *)superImposeImage:(NSString *)image1 OnTopOf:(NSString *)image2
+{
+    CCSprite *image1Sprite = [CCSprite spriteWithFile:image1];
+    CCSprite *image2Sprite = [CCSprite spriteWithFile:image2];
+    CGSize spriteSize;
+    if(image1Sprite.contentSize.width * image1Sprite.contentSize.height > image2Sprite.contentSize.width * image2Sprite.contentSize.height)
+    {
+        spriteSize = image1Sprite.contentSize;
+    }
+    else
+    {
+        spriteSize = image2Sprite.contentSize;
+    }
+    image1Sprite.position = ccp(spriteSize.width/2, spriteSize.height/2);
+    image2Sprite.position = image1Sprite.position;
+    image1Sprite.flipY = YES; //necessary because rendertexture flips image
+    image2Sprite.flipY = YES;
+    
+    CCRenderTexture *rt = [CCRenderTexture renderTextureWithWidth:(int)spriteSize.width height:(int)spriteSize.height];
+    [rt beginWithClear:0 g:0 b:0 a:0];
+    
+    [image2Sprite visit];
+    [image1Sprite visit];
+    [rt end];
+    return [CCSprite spriteWithTexture:rt.sprite.texture];
+    
+}
+            
+@end

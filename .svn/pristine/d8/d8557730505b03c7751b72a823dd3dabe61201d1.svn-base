@@ -1,0 +1,305 @@
+//
+//  HelloWorldLayer.m
+//  cocos2d-normal
+//
+//  Created by Instructor on 9/18/13.
+//  Copyright Instructor 2013. All rights reserved.
+//
+
+
+// Import the interfaces
+#import "HelloWorldLayer.h"
+#import "Simulator.h"
+
+// Needed to obtain the Navigation Controller
+#import "AppDelegate.h"
+
+#pragma mark - HelloWorldLayer
+
+// HelloWorldLayer implementation
+@implementation HelloWorldLayer
+
+// Helper class method that creates a Scene with the HelloWorldLayer as the only child.
++(CCScene *) scene
+{
+	// 'scene' is an autorelease object.
+	CCScene *scene = [CCScene node];
+	
+	// 'layer' is an autorelease object.
+	HelloWorldLayer *layer = [HelloWorldLayer node];
+	
+	// add layer as a child to scene
+	[scene addChild: layer];
+	
+	// return the scene
+	return scene;
+}
+
+// on "init" you need to initialize your instance
+-(id) init
+{
+	// always call "super" init
+	// Apple recommends to re-assign "self" with the "super's" return value
+	if( (self=[super init]) ) {
+		
+        
+        self.touchEnabled = YES;
+        touchPath = [[CCPointArray alloc] init];
+        splinePath = [[CCPointArray alloc] init];
+        touchesMovedCounter = 0;
+        MaxTouchesMovedCounter = 5; //every 5 touches moved, record point
+        
+//        tempSpriteID = [CharacterObject characterObjectWithFile:@"Icon-72.png"];
+//        [self addChild: [[Simulator sharedSimulator]getGameObject:tempSpriteID]];
+        
+        
+        /*
+         // create and initialize a Label
+         CCLabelTTF *label = [CCLabelTTF labelWithString:@"Hello World" fontName:@"Marker Felt" fontSize:64];
+         
+         // ask director for the window size
+         CGSize size = [[CCDirector sharedDirector] winSize];
+         
+         // position the label on the center of the screen
+         label.position =  ccp( size.width /2 , size.height/2 );
+         
+         // add the label as a child to this Layer
+         [self addChild: label];
+         
+         
+         
+         //
+         // Leaderboards and Achievements
+         //
+         
+         // Default font size will be 28 points.
+         [CCMenuItemFont setFontSize:28];
+         
+         // to avoid a retain-cycle with the menuitem and blocks
+         __block id copy_self = self;
+         
+         // Achievement Menu Item using blocks
+         CCMenuItem *itemAchievement = [CCMenuItemFont itemWithString:@"Achievements" block:^(id sender) {
+         
+         
+         GKAchievementViewController *achivementViewController = [[GKAchievementViewController alloc] init];
+         achivementViewController.achievementDelegate = copy_self;
+         
+         AppController *app = (AppController*) [[UIApplication sharedApplication] delegate];
+         
+         [[app navController] presentModalViewController:achivementViewController animated:YES];
+         
+         [achivementViewController release];
+         }];
+         
+         // Leaderboard Menu Item using blocks
+         CCMenuItem *itemLeaderboard = [CCMenuItemFont itemWithString:@"Leaderboard" block:^(id sender) {
+         
+         
+         GKLeaderboardViewController *leaderboardViewController = [[GKLeaderboardViewController alloc] init];
+         leaderboardViewController.leaderboardDelegate = copy_self;
+         
+         AppController *app = (AppController*) [[UIApplication sharedApplication] delegate];
+         
+         [[app navController] presentModalViewController:leaderboardViewController animated:YES];
+         
+         [leaderboardViewController release];
+         }];
+         
+         
+         CCMenu *menu = [CCMenu menuWithItems:itemAchievement, itemLeaderboard, nil];
+         
+         [menu alignItemsHorizontallyWithPadding:20];
+         [menu setPosition:ccp( size.width/2, size.height/2 - 50)];
+         
+         // Add the menu to the layer
+         [self addChild:menu];
+         */
+	}
+	return self;
+}
+
+-(BOOL) ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    GameObject *tempObject = [[Simulator sharedSimulator] getGameObject:tempSpriteID];
+    CharacterObject *tempSprite = (CharacterObject *)tempObject;
+    [[touchPath controlPoints] removeAllObjects];
+    [[splinePath controlPoints] removeAllObjects];
+    [tempSprite resetPath];
+    CGPoint location = [self convertTouchToNodeSpace: touch];
+    [[tempSprite touchPath] addControlPoint:ccpSub(location, ccp(1, 1))]; //need a "ghost" point so that the sprite starts at the location touched
+    [touchPath addControlPoint:ccpSub(location, ccp(1, 1))];
+    [touchPath addControlPoint:location ]; //push touch point onto touchpath
+    [[tempSprite touchPath] addControlPoint:location];
+    return YES;
+}
+
+-(void) registerWithTouchDispatcher {
+    [[CCDirector sharedDirector].touchDispatcher addTargetedDelegate:self priority:INT_MIN+1 swallowsTouches:YES];
+}
+
+-(BOOL) ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    CGPoint location = [self convertTouchToNodeSpace: touch];
+
+    //to filter out points that aren't different enough, use dot product
+    
+    if(touchesMovedCounter == MaxTouchesMovedCounter || ccpDistanceSQ(location, [touchPath getControlPointAtIndex:[touchPath count] - 1]) > 100)
+    {
+        GameObject *tempObject = [[Simulator sharedSimulator] getGameObject:tempSpriteID];
+        CharacterObject *tempSprite = (CharacterObject *)tempObject;
+        [touchPath addControlPoint:location];
+        [[tempSprite touchPath] addControlPoint:location];
+        touchesMovedCounter = 0;
+        
+        CGPoint predictedLocation = location;
+        predictedLocation = ccpAdd(predictedLocation, ccpSub([touchPath getControlPointAtIndex:[touchPath count] - 2], predictedLocation)); //add predicted point
+        [touchPath addControlPoint:predictedLocation];
+        [self createSplineFromPoints:touchPath];
+        [touchPath removeControlPointAtIndex:[touchPath count] -1]; //remove predicted point
+        
+    }
+    else
+    {
+        ++touchesMovedCounter;
+    }
+    return YES;
+}
+
+-(BOOL) ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    GameObject *tempObject = [[Simulator sharedSimulator] getGameObject:tempSpriteID];
+    CharacterObject *tempSprite = (CharacterObject *)tempObject;
+    [tempSprite stopAllActions];
+    CGPoint location = [self convertTouchToNodeSpace: touch];
+    [touchPath addControlPoint: location];
+    [[tempSprite touchPath] addControlPoint:location];
+    [self createSplineFromPoints:touchPath];
+    [tempSprite generateSpline];
+    [tempSprite startMovement];
+    [tempSprite setPositionToTime:0.5f];
+    preSimPoint1 = [tempSprite preSimPoint];
+    [tempSprite setPositionToTime:1.0f];
+    preSimPoint2 = [tempSprite preSimPoint];
+    //[self calculateSpeedsFromPoints:splinePath];
+    return YES;
+}
+
+
+-(void) draw
+{
+    [super draw];
+    
+    glLineWidth(4.0f);
+    ccPointSize(10.0f);
+    
+    ccDrawColor4B(0, 0, 255, 255);
+    ccDrawPoint(preSimPoint1);
+    ccDrawPoint(preSimPoint2);
+    
+    ccPointSize(4.0f);
+    
+    if([splinePath count] > 2)
+    {
+        
+        ccDrawColor4B(0, 255, 0, 175);
+        
+        for(int i = 0; i < [splinePath count] - 1; ++i)
+        {
+            CGPoint point0, point1;
+            point0 = [splinePath getControlPointAtIndex:i];
+            point1 = [splinePath getControlPointAtIndex:i + 1];
+            ccDrawLine(point0, point1);
+        }
+        
+        ccDrawColor4B(255, 0, 0, 175);
+        for(int i = 0; i < [touchPath count] - 1; ++i)
+        {
+            CGPoint point;
+            point = [touchPath getControlPointAtIndex:i];
+            ccDrawPoint(point);
+        }
+    }
+}
+
+-(void)createSplineFromPoints:(CCPointArray *)inPoints
+{
+    [[splinePath controlPoints] removeAllObjects];
+//    NSLog(@"Calculating spline for %d points", [inPoints count]);
+    [splinePath addControlPoint: [inPoints getControlPointAtIndex:0]];
+    CGPoint point0, point1, point2, point3;
+    if([inPoints count] < 4)
+    {
+        //not enough points for spline
+        return;
+    }
+    for(int i = 0; i < [inPoints count] - 3; ++i)
+    {
+        point0 = [inPoints getControlPointAtIndex:i];
+        point1 = [inPoints getControlPointAtIndex:i + 1];
+        point2 = [inPoints getControlPointAtIndex:i + 2];
+        point3 = [inPoints getControlPointAtIndex:i + 3];
+        for(int j = 1; j < 5; ++j)
+        {
+            float t = j/5.0;
+            //(P3 - P0 + 3*P1- 3*P2) * t^3
+            
+            CGPoint newPoint0 = point3;
+            newPoint0 = ccpSub(newPoint0, point0);
+            newPoint0 = ccpAdd(newPoint0, ccpMult(point1, 3));
+            newPoint0 = ccpAdd(newPoint0, ccpMult(point2, -3));
+            newPoint0 = ccpMult(newPoint0, powf(t, 3));
+            
+            // + (2*P0 - 5*P1 + 4*P2 - P3) * t^2
+            CGPoint newPoint1 = ccpMult(point0, 2);
+            newPoint1 = ccpAdd(newPoint1, ccpMult(point1, -5));
+            newPoint1 = ccpAdd(newPoint1, ccpMult(point2, 4));
+            newPoint1 = ccpSub(newPoint1, point3);
+            newPoint1 = ccpMult(newPoint1, powf(t, 2));
+            
+            // + (-P0 + P2) * t
+            CGPoint newPoint2 = ccpSub(point2, point0);
+            newPoint2 = ccpMult(newPoint2, t);
+            
+            // + (2 * P1)
+            newPoint2 = ccpAdd(newPoint2, ccpMult(point1, 2));
+            newPoint2 = ccpAdd(newPoint2, newPoint1);
+            newPoint2 = ccpAdd(newPoint2, newPoint0);
+            newPoint2 = ccpMult(newPoint2, 0.5);
+            
+            [splinePath addControlPoint:newPoint2];
+        }
+    }
+//    NSLog(@"splinePath size = %d", [splinePath count]);
+}
+
+// on "dealloc" you need to release all your retained objects
+- (void) dealloc
+{
+	// in case you have something to dealloc, do it in this method
+	// in this particular example nothing needs to be released.
+	// cocos2d will automatically release all the children (Label)
+	
+	// don't forget to call "super dealloc"
+    GameObject *tempObject = [[Simulator sharedSimulator] getGameObject:tempSpriteID];
+    CharacterObject *tempSprite = (CharacterObject *)tempObject;
+    [touchPath release];
+    [splinePath release];
+    [tempSprite release];
+	[super dealloc];
+}
+
+#pragma mark GameKit delegate
+
+-(void) achievementViewControllerDidFinish:(GKAchievementViewController *)viewController
+{
+	AppController *app = (AppController*) [[UIApplication sharedApplication] delegate];
+	[[app navController] dismissModalViewControllerAnimated:YES];
+}
+
+-(void) leaderboardViewControllerDidFinish:(GKLeaderboardViewController *)viewController
+{
+	AppController *app = (AppController*) [[UIApplication sharedApplication] delegate];
+	[[app navController] dismissModalViewControllerAnimated:YES];
+}
+@end

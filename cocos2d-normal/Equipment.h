@@ -1,0 +1,40 @@
+//
+//  Equipment.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/13/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "Stats.h"
+
+typedef enum EquipmentState : NSInteger{
+    EquipmentActivated,
+    EquipmentNotActivated
+} EquipmentState;
+
+typedef enum EquipmentType : NSInteger{
+    SwordType,
+    BowType,
+    LanceType,
+    WizardStaffType
+} EquipmentType;
+
+@interface Equipment : NSObject
+{
+    Stats *stats_;
+    EquipmentState state_;
+    EquipmentType type_;
+    float range_;
+    NSString *name_;
+}
++(id)equipmentWithStats:(Stats *)stats AndType:(EquipmentType)type;
+- (id)initWithStats:(Stats *)stats AndType:(EquipmentType)type;
+-(void)use;
+@property (nonatomic, retain)Stats *stats;
+@property EquipmentState state;
+@property EquipmentType type;
+@property float range;
+@property (nonatomic, retain) NSString *name;
+@end

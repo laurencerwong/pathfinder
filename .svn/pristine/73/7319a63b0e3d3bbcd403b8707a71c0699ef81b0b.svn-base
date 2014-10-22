@@ -1,0 +1,86 @@
+//
+//  Simulator.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Simulator.h"
+
+
+@implementation Simulator
+
++(Simulator *)sharedSimulator
+{
+    static Simulator *sharedSimulator;
+
+    if(!sharedSimulator)
+    {
+        sharedSimulator = [[Simulator alloc] init];
+    }
+    return sharedSimulator;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        nextActionerID = 0;
+        gameObjects = [[NSMutableDictionary alloc] init];
+        
+        battles = [[NSMutableArray alloc] init];
+        
+        
+        //temp code
+        
+        
+        //end temp code
+    }
+    return self;
+}
+
+-(GameObject *)getGameObject:(int)inActionerID
+{
+    return [gameObjects objectForKey:inActionerID];
+}
+
+-(int)addGameObject:(GameObject *)inGameObject
+{
+    [gameObjects setObject:inGameObject forKey:nextActionerID];
+    return nextActionerID++;
+}
+
+-(void)addBattle:(int)inActionerID1 with:(int)inActionerID2
+{
+    for(Battle *bo in battles)
+    {
+        if([bo containsCombatant:inActionerID1])
+        {
+            [bo addCombatant:inActionerID2];
+            return;
+        }
+        else if([bo containsCombatant:inActionerID2])
+        {
+            [bo addCombatant:inActionerID1];
+            return;
+        }
+    }
+    Battle *newBattleObject = [[Battle alloc] initWithCombatants:inActionerID1 and:inActionerID2];
+    [battles addObject:newBattleObject];
+}
+
+- (void)dealloc
+{
+    
+    for( NSNumber *key in gameObjects)
+    {
+        [[gameObjects objectForKey:key] dealloc];
+    }
+    [gameObjects dealloc];
+    
+    [battles dealloc];
+    
+    [super dealloc];
+}
+@end

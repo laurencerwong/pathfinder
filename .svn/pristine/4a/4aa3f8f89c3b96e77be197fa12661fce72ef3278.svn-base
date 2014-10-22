@@ -1,0 +1,43 @@
+//
+//  Behavior.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 12/3/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Behavior.h"
+#import "CGPointExtension.h"
+
+@implementation Behavior
+
+@synthesize destination = destination_;
+@synthesize desiredAction = desiredAction_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        desiredAction_ = [Action actionWithType:NoAction];
+        destination_ = ccp(0, 0);
+    }
+    return self;
+}
+
+-(int) computeUtilityAndInitialize
+{
+    return 0;
+}
+
++(BOOL) isCharacter:(CharacterObject*)enemy InRangeOfCharacter:(CharacterObject*)me
+{
+    float distSq = ccpDistanceSQ(me.position, enemy.position);
+    float myRangeSq = pow(me.currentEquipment.range, 2);
+    
+    if(distSq <= myRangeSq) {
+        return YES;
+    }
+    return NO;
+}
+
+@end

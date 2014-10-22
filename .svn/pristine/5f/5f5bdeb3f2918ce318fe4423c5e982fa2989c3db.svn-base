@@ -1,0 +1,26 @@
+//
+//  Player.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/11/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "cocos2d.h"
+
+@interface Player : NSObject
+{
+    int playerID_;
+    BOOL hasFinishedTurn_;
+    NSMutableArray *controllableCharacters_;
+    //temp code begin
+    CCTexture2D *myCharacterTexture;
+    //temp code end
+}
+@property int playerID;
+@property BOOL hasFinishedTurn;
+@property (nonatomic, retain) NSMutableArray *controllableCharacters;
+
+-(void)initializeDefaultCharactersWithPosition:(CGPoint)offset;
+@end

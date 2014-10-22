@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="40" height="40" tilewidth="32" tileheight="32">
+ <tileset firstgid="1" source="desert.tsx"/>
+ <layer name="Ground" width="40" height="40">
+  <data encoding="base64" compression="zlib">
+   eJztmG9rwjAQh6O+0K3gnwl2KtZq3dTp1O//6TyxoeUI8RKT62344qEWUvL0d6k5kimlsoj0gQEwjDyPDyeD31KAl2t+LaANdJjdbllNgBT4tIx7A96BpIH8TNngGo+AD2D85FxTYObAnDmbFbB2oIjot7P4bYAf4KtBP1t+BTFPDr9vgX4X5IX9juq+/n+Z/fCaw/eP8sLrMoSf6TvYofz070d+ONdQ+W3RvfZxzS92fbEnZl/Wj8ohgF+3pKeqvchGhzhOs3jSb6Cq/kK/q42EOM70nI9fqqr+Qu/TNsbEcabnYq49bnJl7mUleeaMPj69GYfXqbxS/jvr+08RaH4qFL+b06Ucy+l3FuiH17U0P5/61vsLLr+zgx/OUlp+plpL9uPMz6c34/T7L+QCHP4KOCtpZ4MuNW7qjJBKk2eEFEKdEb6QxRUJmbZn
+  </data>
+ </layer>
+ <objectgroup name="Objects" width="40" height="40">
+  <object name="SpawnPoint1" x="100" y="1156" width="23" height="24"/>
+  <object name="SpawnPoint2" x="1090" y="99" width="26" height="25"/>
+ </objectgroup>
+</map>

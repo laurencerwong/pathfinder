@@ -1,0 +1,132 @@
+//
+//  Simulator.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Simulator.h"
+
+
+@implementation Simulator
+
+@synthesize currentLayerToAddThingsTo = currentLayerToAddThingsTo_;
+
++(Simulator *)sharedSimulator
+{
+    static Simulator *sharedSimulator;
+    
+    if(!sharedSimulator)
+    {
+        sharedSimulator = [[Simulator alloc] init];
+    }
+    return sharedSimulator;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        nextActionerID = 0;
+        gameObjects = [[NSMutableDictionary alloc] init];
+        
+        battles = [[NSMutableArray alloc] init];
+        
+        
+        //temp code
+        
+        
+        //end temp code
+    }
+    return self;
+}
+
+-(GameObject *)getGameObject:(int)inActionerID
+{
+    return [gameObjects objectForKey:[NSNumber numberWithInt:inActionerID]];
+}
+
+-(int)addGameObject:(GameObject *)inGameObject
+{
+    [gameObjects setObject:inGameObject forKey:[NSNumber numberWithInt:nextActionerID]];
+    [[self currentLayerToAddThingsTo] addChild:inGameObject];
+    return nextActionerID++;
+}
+
+-(void)addBattle:(int)inActionerID1 with:(int)inActionerID2
+{
+    for(Battle *bo in battles)
+    {
+        if([bo containsCombatant:inActionerID1])
+        {
+            [bo addCombatant:inActionerID2];
+            return;
+        }
+        else if([bo containsCombatant:inActionerID2])
+        {
+            [bo addCombatant:inActionerID1];
+            return;
+        }
+    }
+    Battle *newBattleObject = [[Battle alloc] initWithCombatants:inActionerID1 and:inActionerID2];
+    [battles addObject:newBattleObject];
+}
+
+-(GameObject *)findObjectByTouch:(CGPoint)worldSpaceTouch
+{
+    for( NSNumber *n in gameObjects )
+    {
+        GameObject *tempObject = [gameObjects objectForKey:n];
+        if(ccpLengthSQ(ccpSub(worldSpaceTouch, [tempObject position])) < powf([tempObject innerHitCircleRadius], 2.0))
+        {
+            if([tempObject isKindOfClass:[CharacterObject class]])
+            {
+                return tempObject;
+            }
+        }
+    }
+    return NULL;
+}
+
+-(void)preSimulate
+{
+    for( NSNumber *n in gameObjects )
+    {
+        GameObject *tempObject = [gameObjects objectForKey:n];
+        if([tempObject isKindOfClass:[CharacterObject class]])
+        {
+            CharacterObject *tempCharacter = (CharacterObject*)tempObject;
+            for( NSNumber *n1 in gameObjects )
+            {
+                GameObject *tempObject1 = [gameObjects objectForKey:n1];
+                if([tempObject1 isKindOfClass:[CharacterObject class]] && tempObject1 != tempObject)
+                {
+                    //if character1 has collision with character2, then add battle
+                    CharacterObject* tempCharacter1 = (CharacterObject *)tempObject1;
+                    if([tempCharacter hasCollisionWith:tempCharacter1])
+                    {
+                        [self addBattle:n.intValue with:n1.intValue];
+                    }
+                }
+            }
+            
+        }
+    }
+    
+}
+
+- (void)dealloc
+{
+    
+    for( NSNumber *key in gameObjects)
+    {
+        [[gameObjects objectForKey:key] dealloc];
+    }
+    [gameObjects dealloc];
+    
+    [battles dealloc];
+    
+    [super dealloc];
+}
+@end

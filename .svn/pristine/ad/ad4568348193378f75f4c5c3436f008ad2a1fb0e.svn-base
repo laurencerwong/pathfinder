@@ -1,0 +1,110 @@
+//
+//  SpriteLayer.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import "SpriteLayer.h"
+#import "Simulator.h"
+
+
+@implementation SpriteLayer
+
+@synthesize camera = camera_;
+@synthesize tileMapLayer = tileMapLayer_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        [self initializeCamera];
+        self.touchEnabled = YES;
+        movingMap = NO;
+        
+        characters = [[NSMutableArray alloc]init];
+        [Simulator sharedSimulator].currentLayerToAddThingsTo = self;
+        //temp code start
+        
+        [characters addObject:[NSNumber numberWithInt:[CharacterObject characterObjectWithFile:@"Icon-72.png"]] ];
+        
+        //temp code end
+    }
+    return self;
+}
+
+-(void) update:(ccTime)delta
+{
+    [self.camera update:delta];
+}
+
+-(void) draw
+{
+    [super draw];
+
+    ccDrawColor4B(0, 255, 0, 255);
+    ccDrawSolidCircle(self.camera.position, 5, 12);
+    ccDrawColor4B(255, 0, 0, 255);
+    ccDrawSolidCircle(self.camera.desiredPosition, 5, 12);
+    
+    
+    CGSize s = [[CCDirector sharedDirector] winSize];
+    CGPoint BLBound = ccp(s.width/2, s.height/2);
+    CGPoint TRBound = ccp(self.boundingBox.size.width - s.width/2, self.boundingBox.size.height - s.height/2);
+    ccDrawRect(BLBound, TRBound);
+}
+
+-(void) initializeCamera
+{
+    CGSize s = [[CCDirector sharedDirector] winSize];
+    self.camera = [CameraDummyObject node];
+    self.camera.position = ccp(0, s.height/2);
+    [self addChild: self.camera];
+}
+
+-(void) registerWithTouchDispatcher {
+    [[CCDirector sharedDirector].touchDispatcher addTargetedDelegate:self priority:INT_MIN+1 swallowsTouches:YES];
+}
+
+-(BOOL) ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    initialTouchLocation = [self convertTouchToNodeSpace: touch];
+    movingMap = YES;
+        
+    return YES;
+}
+
+-(void) ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    
+    //Camera movement
+    CGSize s = [[CCDirector sharedDirector] winSize];
+    CGPoint touchLocation = [self convertTouchToNodeSpace: touch];
+    CGPoint drag = ccpSub(initialTouchLocation, touchLocation);
+    CGPoint desiredPosition = ccpAdd(drag, self.camera.position);
+    CGPoint center = ccp(s.width/2, s.height/2);
+    CGSize mapSize = self.tileMapLayer.tileMap.contentSize;
+    
+    //BOunds checking against the map to not move offscreen
+    if(desiredPosition.x < (center.x)) {  //LEFT
+        desiredPosition.x = center.x;
+    }
+    if(desiredPosition.x > (mapSize.width - center.x)) {  //RIGHT
+        desiredPosition.x = mapSize.width - center.x;
+    }
+    if(desiredPosition.y > (mapSize.height - center.y)) {  //UP
+       desiredPosition.y = mapSize.height - center.y;
+    }
+    if(desiredPosition.y < (center.y)) {  //DOWN
+        desiredPosition.y = center.y;
+    }
+    
+    self.camera.desiredPosition = desiredPosition;
+}
+
+-(void) ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    movingMap = NO;
+}
+@end

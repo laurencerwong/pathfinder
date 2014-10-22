@@ -1,0 +1,132 @@
+//
+//  BatchDamageSpriteHandler.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/18/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "BatchBattleSpriteHandler.h"
+#import "TimedSprite.h"
+#import "Slash.h"
+
+@implementation BatchBattleSpriteHandler
+
++(id)sharedBatchBattleSpriteHandler
+{
+    static BatchBattleSpriteHandler *sharedDamageSpriteHandler;
+    
+    if(!sharedDamageSpriteHandler)
+    {
+        sharedDamageSpriteHandler = [[BatchBattleSpriteHandler node] retain];
+    }
+    return sharedDamageSpriteHandler;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        batchBattleSprites = [[NSMutableArray alloc] init];
+        objectsToDelete = [[NSMutableArray alloc] init];
+        persistentMessagesToDisplay = [[NSMutableArray alloc] init];
+        currentPersistentBubble = nil;
+    }
+    return self;
+}
+
+-(void)displayDamage:(int)damage AtPosition:(CGPoint)position
+{
+    DamageSprite *tempSprite = [DamageSprite damageSpriteWithNumber:damage AtPosition:position];
+    [layer_ addChild:tempSprite z:9];
+    [batchBattleSprites addObject:tempSprite];
+}
+
+-(void)displaySlashAtPosition:(CGPoint)position
+{
+    Slash *tempSlash = [Slash slashAtPoint:position];
+    [layer_ addChild:tempSlash z:9];
+    [batchBattleSprites addObject:tempSlash];
+}
+-(void)displayTimedMessage:(NSString *)message originatingFrom:(CGPoint)position withTimeout:(float)time
+{
+    SpeechBubble *speechBubble = [SpeechBubble speechBubbleWithText:message andPosition:position andTimeout:time];
+    [layer_ addChild:speechBubble z:10];
+    [batchBattleSprites addObject:speechBubble];
+}
+-(void)displayTimedMessage:(NSString *)message fromCharacter:(CharacterObject *)character withTimeout:(float)time
+{
+    SpeechBubble *speechBubble = [SpeechBubble speechBubbleWithText:message fromCharacter:character andTimeout:time];
+    [layer_ addChild:speechBubble z:10];
+    [batchBattleSprites addObject:speechBubble];
+}
+
+-(BOOL)touchedPersistentMessage:(CGPoint)worldTouchLocation
+{
+    if(currentPersistentBubble)
+    {
+        return CGRectContainsPoint(currentPersistentBubble.getBoundingBox, worldTouchLocation);
+    }
+    else
+    {
+        [self displayNextPersistentMessage];
+    }
+    return NO;
+}
+
+-(void)displayPersistentMessage:(NSString *)message originatingFrom:(CGPoint)position
+{
+    SpeechBubble *speechBubble = [SpeechBubble speechBubbleWithText:message andPosition:position];
+    [layer_ addChild:speechBubble];
+    if(!persistentMessagesToDisplay.count && !currentPersistentBubble)
+    {
+        currentPersistentBubble = speechBubble;
+    }
+    else
+    {
+        speechBubble.visible = NO;
+        [persistentMessagesToDisplay addObject:speechBubble];
+    }
+    [batchBattleSprites addObject:speechBubble];
+}
+
+-(BOOL)displayNextPersistentMessage
+{
+    if([persistentMessagesToDisplay count] && currentPersistentBubble)
+    {
+        currentPersistentBubble.killMe = YES;
+        currentPersistentBubble = [persistentMessagesToDisplay objectAtIndex:0];
+        currentPersistentBubble.visible = YES;
+        [persistentMessagesToDisplay removeObjectAtIndex:0];
+        return YES;
+    }
+    else if(currentPersistentBubble)
+    {
+        currentPersistentBubble.killMe = YES;
+        return NO;
+    }
+    return NO;
+}
+
+-(void)setLayer:(CCLayer *)layer
+{
+    layer_ = layer;
+}
+
+-(void)update:(ccTime)delta withLayer:(CCLayer *)layer
+{
+    for(id<TimedSprite> ts in batchBattleSprites)
+    {
+        if([ts killMe])
+        {
+            [layer_ removeChild:[ts getAsNode]];
+            [objectsToDelete addObject:[ts getAsNode]];
+        }
+        else
+        {
+            [ts update:delta];
+        }
+    }
+    [batchBattleSprites removeObjectsInArray:objectsToDelete];
+}
+@end

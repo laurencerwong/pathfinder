@@ -1,0 +1,224 @@
+//
+//  BatchDamageSpriteHandler.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/18/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "BatchBattleSpriteHandler.h"
+#import "TimedSprite.h"
+#import "Slash.h"
+#import "CCParticleSystemQuad.h"
+#import "ArrowEffect.h"
+#import "Arrow.h"
+#import "MagicMissile.h"
+#import "MagicMissileExplosion.h"
+
+@implementation BatchBattleSpriteHandler
+
++(id)sharedBatchBattleSpriteHandler
+{
+    static BatchBattleSpriteHandler *sharedDamageSpriteHandler;
+    
+    if(!sharedDamageSpriteHandler)
+    {
+        sharedDamageSpriteHandler = [[BatchBattleSpriteHandler node] retain];
+    }
+    return sharedDamageSpriteHandler;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        batchBattleSprites = [[NSMutableArray alloc] init];
+        objectsToDelete = [[NSMutableArray alloc] init];
+        persistentMessagesToDisplay = [[NSMutableArray alloc] init];
+        spritesToDisplayNextUpdate = [[NSMutableArray alloc] init];
+        currentPersistentBubble = nil;
+        bloodTexture = [[CCTextureCache sharedTextureCache] addImage:@"BloodTexture.png"];
+    }
+    return self;
+}
+
+-(void)addObject:(CCNode *)object
+{
+    if(!isInUpdate)
+    {
+        [batchBattleSprites addObject:object];
+    }
+    else
+    {
+        [spritesToDisplayNextUpdate addObject:object];
+    }
+}
+
+-(void)displayDamage:(int)damage AtPosition:(CGPoint)position
+{
+    DamageSprite *tempSprite = [DamageSprite damageSpriteWithNumber:damage AtPosition:position];
+    [layer_ addChild:tempSprite z:30];
+    [self addObject:tempSprite];
+
+}
+
+-(void)displaySlashAtPosition:(CGPoint)position
+{
+    Slash *tempSlash = [Slash slashAtPoint:position];
+    [layer_ addChild:tempSlash z:10];
+    [self addObject:tempSlash];
+}
+-(void)displayTimedMessage:(NSString *)message originatingFrom:(CGPoint)position withTimeout:(float)time
+{
+    SpeechBubble *speechBubble = [SpeechBubble speechBubbleWithText:message andPosition:position andTimeout:time];
+    [layer_ addChild:speechBubble z:10];
+    [self addObject:speechBubble];
+}
+-(void)displayTimedMessage:(NSString *)message fromCharacter:(CharacterObject *)character withTimeout:(float)time
+{
+    SpeechBubble *speechBubble = [SpeechBubble speechBubbleWithText:message fromCharacter:character andTimeout:time];
+    [layer_ addChild:speechBubble z:10];
+    [self addObject:speechBubble];
+}
+
+-(BOOL)touchedPersistentMessage:(CGPoint)worldTouchLocation
+{
+    if(currentPersistentBubble)
+    {
+        return CGRectContainsPoint(currentPersistentBubble.getBoundingBox, worldTouchLocation);
+    }
+    else
+    {
+        [self displayNextPersistentMessage];
+    }
+    return NO;
+}
+
+-(void)displayPersistentMessage:(NSString *)message originatingFrom:(CGPoint)position
+{
+    SpeechBubble *speechBubble = [SpeechBubble speechBubbleWithText:message andPosition:position];
+    [layer_ addChild:speechBubble];
+    if(!persistentMessagesToDisplay.count && !currentPersistentBubble)
+    {
+        currentPersistentBubble = speechBubble;
+    }
+    else
+    {
+        speechBubble.visible = NO;
+        [persistentMessagesToDisplay addObject:speechBubble];
+    }
+    [self addObject:speechBubble];
+}
+
+-(BOOL)displayNextPersistentMessage
+{
+    if([persistentMessagesToDisplay count] && currentPersistentBubble)
+    {
+        currentPersistentBubble.killMe = YES;
+        currentPersistentBubble = [persistentMessagesToDisplay objectAtIndex:0];
+        currentPersistentBubble.visible = YES;
+        [persistentMessagesToDisplay removeObjectAtIndex:0];
+        return YES;
+    }
+    else if(currentPersistentBubble)
+    {
+        currentPersistentBubble.killMe = YES;
+        return NO;
+    }
+    return NO;
+}
+
+-(void)setLayer:(CCLayer *)layer
+{
+    layer_ = layer;
+}
+
+-(void)displayBloodExplosionAtPosition:(CGPoint)position
+{
+    CCParticleExplosion *bloodExplosion = [CCParticleExplosion node];
+    [bloodExplosion setTexture:bloodTexture];
+    [bloodExplosion setPosition:position];
+    [bloodExplosion setDuration:0.4];
+    [bloodExplosion setLife:0.3];
+    [bloodExplosion setLifeVar:0.1];
+    [bloodExplosion setTotalParticles:25];
+    [bloodExplosion setSpeed:50];
+    [bloodExplosion setStartSize:20];
+    [bloodExplosion setEndSize:0];
+    [bloodExplosion setStartColor:ccc4f(1.0, 0.2, 0.0, 1.0)];
+    [bloodExplosion setStartColorVar:ccc4f(0.2, 0.0, 0.0, 0.0)];
+    [bloodExplosion setEndColor:ccc4f(0.0f, 0.0f, 0.0f, 1.0f)];
+    [bloodExplosion setEndColorVar:ccc4f(0.0f, 0.0f, 0.0f, 0.0f)];
+    [bloodExplosion setAngleVar:90];
+    [bloodExplosion setSpeedVar:100];
+    [bloodExplosion setPositionType: kCCPositionTypeRelative];
+    bloodExplosion.autoRemoveOnFinish = YES;
+    [layer_ addChild:bloodExplosion];
+}
+
+-(void)displayArrowEffectAtPosition:(CGPoint)position
+{
+    ArrowEffect *tempArrowEffect = [ArrowEffect arrowEffectAtPoint:position];
+    [layer_ addChild:tempArrowEffect z:10];
+    [self addObject:tempArrowEffect];
+}
+
+-(void)displayArrowEffectAtPosition:(CGPoint)position fromPosition:(CGPoint)origin
+{
+    ArrowEffect *tempArrowEffect = [ArrowEffect arrowEffectAtPoint:position fromPoint:origin];
+    [layer_ addChild:tempArrowEffect z:10];
+    [self addObject:tempArrowEffect];}
+
+-(void)shootArrowFromCharacter:(CharacterObject *)character toPoint:(CGPoint)destination withDamage:(int)damage
+{
+    Arrow *tempArrow = [Arrow arrowFromCharacter:character toPoint:destination withDamage:damage];
+    [layer_ addChild:tempArrow z:20];
+    [self addObject:tempArrow];
+    numProjectiles_++;
+}
+-(void)shootMagicFromCharacter:(CharacterObject *)character toPoint:(CGPoint)destination withDamage:(int)damage
+{
+    MagicMissile *tempMagic = [MagicMissile magicMissileFromCharacter:character toPoint:destination withDamage:damage];
+    [layer_ addChild:tempMagic z:20];
+    [self addObject:tempMagic];
+    numProjectiles_++;
+}
+
+-(void)displayMagicExplosionAtPosition:(CGPoint)position
+{
+    MagicMissileExplosion *tempMagicExplosion = [MagicMissileExplosion magicMissileExplosionAtPoint:position];
+    [layer_ addChild:tempMagicExplosion z:15];
+    [self addObject:tempMagicExplosion];
+}
+
+-(BOOL)projectilesFinished
+{
+    return [batchBattleSprites count] == 0;
+}
+
+-(void)incrementNumFinishedProjectiles
+{
+    numFinishedProjectiles_++;
+}
+
+-(void)update:(ccTime)delta withLayer:(CCLayer *)layer
+{
+    isInUpdate = YES;
+    for(id<TimedSprite> ts in batchBattleSprites)
+    {
+        if([ts killMe])
+        {
+            [objectsToDelete addObject:[ts getAsNode]];
+            [layer_ removeChild:[ts getAsNode] cleanup:YES];
+        }
+        else
+        {
+            [ts update:delta];
+        }
+    }
+    [batchBattleSprites removeObjectsInArray:objectsToDelete];
+    [batchBattleSprites addObjectsFromArray: spritesToDisplayNextUpdate];
+    [spritesToDisplayNextUpdate removeAllObjects];
+    isInUpdate = NO;
+}
+@end

@@ -1,0 +1,26 @@
+//
+//  AIState.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "AIState.h"
+
+@implementation AIState
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+    
+}
+-(void)update:(ccTime)delta
+{
+    
+}
+-(void)onExit
+{
+    
+}
+
+@end

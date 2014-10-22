@@ -1,0 +1,64 @@
+//
+//  SpriteLayer.h
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "cocos2d.h"
+#import "CameraDummyObject.h"
+#import "CharacterObject.h"
+#import "TileMapLayer.h"
+#import "Buttons.h"
+
+typedef enum SplineDrawingState {
+    Drawing,
+    JustCollided,
+    AlreadyCollided
+} SplineDrawingState;
+
+@interface SpriteLayer : CCLayer {
+    BOOL debugDraw;
+    
+    TileMapLayer *tileMapLayer_;
+    CameraDummyObject *camera_;
+    NSMutableArray *players;
+    int currentPlayerID_;
+    int numFinishedPlayers;
+    
+    CGPoint touchBeginLocation;
+    CGPoint lastTouchMovedLocation;
+    CGPoint dragOffset;
+    BOOL movingMap;
+    int buttonsPressed_;
+    Button lastButtonPressed;
+    
+    CCPointArray *touchPath;
+    CCPointArray *splinePath;
+    int touchesMovedCounter;
+    int MaxTouchesMovedCounter;
+    CharacterObject *currentlySelectedCharacter_;
+    NSString *endTurnButtonText_;
+    CCSprite *selectedSprite;
+    SplineDrawingState currentSplineDrawingState;
+    
+    NSMutableDictionary *pathTextures;
+    CCRenderTexture *pathTexture;
+    CGPoint pathTextureExtremes[2];
+}
+
+-(void) initializeTileMap;
+-(void) initializeCamera;
+-(void) endTurn;
+
+@property int buttonsPressed;
+@property (nonatomic,readwrite,retain)CameraDummyObject *camera;
+@property (strong)TileMapLayer *tileMapLayer;
+@property (nonatomic, retain)CharacterObject *currentlySelectedCharacter;
+@property int currentPlayerID;
+@property (nonatomic, retain)NSString* endTurnButtonText;
+
+
+@end

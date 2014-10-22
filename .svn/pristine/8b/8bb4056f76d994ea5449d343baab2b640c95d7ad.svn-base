@@ -1,0 +1,62 @@
+//
+//  BatchDamageSpriteHandler.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/18/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "BatchBattleSpriteHandler.h"
+
+@implementation BatchBattleSpriteHandler
+
++(id)sharedBatchBattleSpriteHandler
+{
+    static BatchBattleSpriteHandler *sharedDamageSpriteHandler;
+    
+    if(!sharedDamageSpriteHandler)
+    {
+        sharedDamageSpriteHandler = [[BatchBattleSpriteHandler node] retain];
+    }
+    return sharedDamageSpriteHandler;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        damageSprites = [[NSMutableArray alloc] init];
+    }
+    return self;
+}
+
+-(void)displayDamage:(int)damage AtPosition:(CGPoint)position
+{
+    DamageSprite *tempSprite = [DamageSprite damageSpriteWithNumber:damage AtPosition:position];
+    [layer_ addChild:tempSprite];
+    [damageSprites addObject:tempSprite];
+}
+
+-(void)setLayer:(CCLayer *)layer
+{
+    layer_ = layer;
+}
+
+-(void)update:(ccTime)delta withLayer:(CCLayer *)layer
+{
+    NSMutableArray *objectsToDelete = [[[NSMutableArray alloc] init] autorelease];
+    for(DamageSprite *ds in damageSprites)
+    {
+        if([ds killMe])
+        {
+            [layer_ removeChild:ds];
+            [objectsToDelete addObject:ds];
+        }
+        else
+        {
+            [ds update:delta];
+        }
+    }
+    [damageSprites removeObjectsInArray:objectsToDelete];
+}
+@end

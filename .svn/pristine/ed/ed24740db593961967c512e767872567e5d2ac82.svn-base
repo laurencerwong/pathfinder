@@ -1,0 +1,93 @@
+//
+//  Player.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/11/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Player.h"
+#import "Simulator.h"
+#import "Warrior.h"
+#import "Archer.h"
+#import "Swordsman.h"
+#import "Lancer.h"
+#import "Lance.h"
+#import "LongSword.h"
+#import "BowAndArrow.h"
+#import "Castle.h"
+#import "ColoredSprite.h"
+
+#define MAX_COLUMNS 6
+
+@implementation Player
+@synthesize playerID = playerID_;
+@synthesize hasFinishedTurn = hasFinishedTurn_;
+@synthesize controllableCharacters = controllableCharacters_;
+@synthesize myColor = myColor_;
+
+- (id)initWithColor:(ccColor4F)inColor;
+{
+    self = [super init];
+    if (self) {
+        self.playerID = [[Simulator sharedSimulator] initializePlayer];
+        self.controllableCharacters = [[NSMutableArray alloc] init];
+        self.myColor = inColor;
+        currentRow = 0;
+        currentColumn = 0;
+    }
+    return self;
+}
+-(void)addCharacter:(enum CharacterType)inCharacterType andOffset:(CGPoint)offset
+{
+    CGPoint newCharacterPosition = ccpAdd(ccp(currentRow * 32, currentColumn * 32), offset);
+    ColoredSprite *characterIcon;
+    CharacterObject *tempCharacter;
+    switch(inCharacterType)
+    {
+        case WarriorType:
+            [self.controllableCharacters addObject:[NSNumber numberWithInt:[Warrior WarriorWithRandStatsAndEquipment1:[[LongSword alloc] init] AndEquipment2:[[LongSword alloc] init] AndPlayerID:self.playerID AndColor:self.myColor]]];
+            tempCharacter = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:self.controllableCharacters.count - 1]];
+            characterIcon = [ColoredSprite ColoredSpriteWithFile:@"AxeIcon.png" AndColor:self.myColor];
+            break;
+        case ArcherType:
+            [self.controllableCharacters addObject:[NSNumber numberWithInt:[Archer ArcherWithRandStatsAndEquipment1:[[BowAndArrow alloc] init] AndEquipment2:[[BowAndArrow alloc] init] AndPlayerID:self.playerID AndColor:self.myColor]]];
+            tempCharacter = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:self.controllableCharacters.count - 1]];
+            characterIcon = [ColoredSprite ColoredSpriteWithFile:@"ArrowIcon.png" AndColor:self.myColor];
+            break;
+        case SwordsmanType:
+            [self.controllableCharacters addObject:[NSNumber numberWithInt:[Lancer LancerWithRandStatsAndEquipment1:[[Lance alloc] init] AndEquipment2:[[Lance alloc] init] AndPlayerID:self.playerID AndColor:self.myColor]]];
+            tempCharacter = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:self.controllableCharacters.count - 1]];
+            characterIcon = [ColoredSprite ColoredSpriteWithFile:@"LanceIcon.png" AndColor:self.myColor];
+            break;
+        case LancerType:
+            [self.controllableCharacters addObject:[NSNumber numberWithInt:[Swordsman SwordsmanWithRandStatsAndEquipment1:[[LongSword alloc] init] AndEquipment2:[[LongSword alloc] init] AndPlayerID:self.playerID AndColor:self.myColor]]];
+            tempCharacter = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:self.controllableCharacters.count - 1]];
+            characterIcon = [ColoredSprite ColoredSpriteWithFile:@"SwordIcon.png" AndColor:self.myColor];
+            break;
+            
+    }
+    characterIcon.position = ccp(tempCharacter.contentSize.width/12, tempCharacter.contentSize.height/2);
+    [tempCharacter addChild:characterIcon];
+    tempCharacter.position = newCharacterPosition;
+    currentRow++;
+    if(currentRow == MAX_COLUMNS)
+    {
+        currentRow = 0;
+        currentColumn++;
+    }
+}
+-(void)initializeDefaultCharactersWithPosition:(CGPoint)offset
+{
+    [self addCharacter:WarriorType andOffset:offset];
+    [self addCharacter:SwordsmanType andOffset:offset];
+    [self addCharacter:LancerType andOffset:offset];
+    [self addCharacter:ArcherType andOffset:offset];
+
+
+}
+
+
+@end
+
+

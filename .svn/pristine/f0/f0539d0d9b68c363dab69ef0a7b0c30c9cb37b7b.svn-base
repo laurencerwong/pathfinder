@@ -1,0 +1,598 @@
+//
+//  CharacterObject.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Simulator.h"
+#import "CharacterObject.h"
+#import "Dead.h"
+#import "QuietLog.h"
+#import "Equipment.h"
+#import "CCRenderTexture.h"
+#import "BatchBattleSpriteHandler.h"
+#import "ColoredSprite.h"
+
+@implementation CharacterObject
+
+@synthesize touchPath = touchPath_;
+@synthesize isSelected = isSelected_;
+@synthesize hasFinishedMoving = hasFinishedMoving_;
+@synthesize currentHealth = currentHealth_;
+@synthesize playerID = playerID_;
+@synthesize currentEquipment = currentEquipment_;
+@synthesize action = action_;
+@synthesize stats = stats_;
+@synthesize isDead = isDead_;
+@synthesize pathTexture = pathTexture_;
+//temp code begin
+@synthesize preSimPoint = currentPreSimPosition;
+//@synthesize hasAlreadyMoved = hasAlreadyMoved_;
+//temp code end
+@synthesize mySpline = mySpline_;
+
++(int)characterObjectWithFile:(NSString *)filename AndPlayerID:(int)inPlayerID AndColor:(ccColor4F)inColor;
+{
+    CharacterObject *me = [[self alloc] initializeWithFile:filename AndPlayerID:inPlayerID AndColor:inColor];
+    return me.actionerID;
+    
+}
+
+-(id)initializeWithFile:(NSString *)filename AndPlayerID:(int)inPlayerID AndColor:(ccColor4F)color
+{
+    self = [super initWithFile:filename];
+    if (self) {
+        
+        [[CCSpriteFrameCache sharedSpriteFrameCache] addSpriteFramesWithFile:@"CharacterAndItem.plist"];
+        touchPath_ = [[CCPointArray alloc] init];
+        distancesBetweenPoints = [[NSMutableArray alloc] init];
+        speedArray = [[NSMutableArray alloc] init];
+        
+        self.isDead = NO;
+        stats_ = [[Stats alloc] init];
+        stats_.attack = 40;
+        stats_.defense = 10;
+        stats_.speed = 5;
+        stats_.luck = 5;
+        stats_.maxHealth = 100;
+        self.currentHealth = stats_.maxHealth;
+        self.currentActionPoints = self.maxActionPoints;
+        self.playerID = inPlayerID;
+        self.action = [Action actionWithType:NoAction];
+        self.scale = 1.0;
+        
+        lastTime = 0.0f;
+        lastKnownControlPointIndex = 0;
+        lastRemainingDistance = 0;
+        self.isSelected = NO;
+        
+        //using character's own stats for now
+        e1 = [Equipment equipmentWithStats:self.stats AndType:EquipmentActivatable];
+        e2 = [Equipment equipmentWithStats:self.stats AndType:EquipmentActivatable];
+        currentEquipment_ = e1;
+        [[Simulator sharedSimulator] addCharacterObject:self forPlayer:self.playerID];
+        currentState = [[WaitingForOrder alloc]init];
+        [currentState onEnter:self];
+        
+        myNumber = [CCLabelTTF labelWithString:[NSString stringWithFormat:@"%d", self.actionerID] fontName:@"Marker Felt" fontSize:15];
+        [self addChild:myNumber];
+        myNumber.position = ccp(self.contentSize.width/2, self.contentSize.height/2);
+        myNumber.color = ccc3(0, 200, 200);
+        
+        [self setupAnim];
+        
+        fragmentSource = (GLchar*) [[NSString stringWithContentsOfFile:[[CCFileUtils sharedFileUtils] fullPathForFilename:@"SetTeamColor.fsh"] encoding:NSUTF8StringEncoding error:nil] UTF8String];
+        
+        if(fragmentSource == NULL)
+        {
+            assert(false);
+        }
+        self.shaderProgram  = [[CCGLProgram alloc] initWithVertexShaderByteArray:ccPositionTextureA8Color_vert fragmentShaderByteArray:fragmentSource];
+        [self.shaderProgram addAttribute:kCCAttributeNamePosition index:kCCVertexAttrib_Position];
+        [self.shaderProgram addAttribute:kCCAttributeNameTexCoord index:kCCVertexAttrib_TexCoords];
+        [self.shaderProgram link];
+        [self.shaderProgram updateUniforms];
+        [self.shaderProgram use];
+        
+        int teamColorLocation = glGetUniformLocation(self.shaderProgram->_program, "v_teamColor");
+        glUniform4f(teamColorLocation, color.r, color.g, color.b, color.a);
+        
+    }
+    return self;
+}
+
+-(void) setEquipment:(Equipment *)inEquipment1 AndEquipment:(Equipment *)inEquipment2
+{
+    e1 = inEquipment1;
+    e2 = inEquipment2;
+    currentEquipment_ = e1;
+}
+
+-(void) calculateSpeedsFromPoints:(CCPointArray *)inPoints
+{
+    //    QuietLog(@"calculating speed");
+    if([[inPoints controlPoints] count])
+    {
+        [speedArray removeAllObjects];
+        
+        desiredSpeed = stats_.speed * 20.0f;
+        
+        float firstDistance = ccpDistance([inPoints getControlPointAtIndex:1], [inPoints getControlPointAtIndex:0]);
+        
+        [distancesBetweenPoints addObject:[NSNumber numberWithFloat:firstDistance]];
+        
+        float time = firstDistance / desiredSpeed;
+        [speedArray addObject:[CCMoveTo actionWithDuration:time position:[inPoints getControlPointAtIndex:1]]];
+        for(int i = 2; i < [inPoints count]; ++i)
+        {
+            float nextDistance = ccpDistance([inPoints getControlPointAtIndex:i], [inPoints getControlPointAtIndex:i - 1]);
+            [distancesBetweenPoints addObject:[NSNumber numberWithFloat:nextDistance]];
+            float newTime = nextDistance / desiredSpeed;
+            [speedArray addObject:[CCMoveTo actionWithDuration:newTime position:[inPoints getControlPointAtIndex:i]]];
+        }
+        
+    }
+    
+}
+
+-(void) addControlPoint:(CGPoint)controlPoint
+{
+    if(self.currentActionPoints > 0)
+    {
+        int lastControlPointIndex = [[self touchPath] count] - 1;
+        if(lastControlPointIndex > 3)
+        {
+            float distanceFromPoint1ToPoint2 = 0;
+            CGPoint point0 = [[self touchPath] getControlPointAtIndex:lastControlPointIndex - 3];
+            CGPoint point1 = [[self touchPath] getControlPointAtIndex:lastControlPointIndex - 2];
+            CGPoint point2 = [[self touchPath] getControlPointAtIndex:lastControlPointIndex - 1];
+            CGPoint point3 = [[self touchPath] getControlPointAtIndex:lastControlPointIndex];
+            
+            CGPoint lastInterpolatedPoint = point1;
+            for(int j = 1; j < 5; ++j)
+            {
+                float t = j/5.0;
+                //(P3 - P0 + 3*P1- 3*P2) * t^3
+                
+                CGPoint newPoint0 = point3;
+                newPoint0 = ccpSub(newPoint0, point0);
+                newPoint0 = ccpAdd(newPoint0, ccpMult(point1, 3));
+                newPoint0 = ccpAdd(newPoint0, ccpMult(point2, -3));
+                newPoint0 = ccpMult(newPoint0, powf(t, 3));
+                
+                // + (2*P0 - 5*P1 + 4*P2 - P3) * t^2
+                CGPoint newPoint1 = ccpMult(point0, 2);
+                newPoint1 = ccpAdd(newPoint1, ccpMult(point1, -5));
+                newPoint1 = ccpAdd(newPoint1, ccpMult(point2, 4));
+                newPoint1 = ccpSub(newPoint1, point3);
+                newPoint1 = ccpMult(newPoint1, powf(t, 2));
+                
+                // + (-P0 + P2) * t
+                CGPoint newPoint2 = ccpSub(point2, point0);
+                newPoint2 = ccpMult(newPoint2, t);
+                
+                // + (2 * P1)
+                newPoint2 = ccpAdd(newPoint2, ccpMult(point1, 2));
+                newPoint2 = ccpAdd(newPoint2, newPoint1);
+                newPoint2 = ccpAdd(newPoint2, newPoint0);
+                newPoint2 = ccpMult(newPoint2, 0.5);
+                
+                float pointDistance = ccpDistance(lastInterpolatedPoint, newPoint2);
+                distanceFromPoint1ToPoint2 += pointDistance;
+                distanceFromLastArrow += pointDistance;
+                if(distanceFromLastArrow > 50.0)
+                {
+                    [self.mySpline addArrowFromPoint:lastInterpolatedPoint to:newPoint2];
+                    distanceFromLastArrow = 0;
+                }
+                lastInterpolatedPoint = newPoint2;
+                [[self mySpline] addSplinePoint:newPoint2];
+            }
+            self.currentActionPoints -= distanceFromPoint1ToPoint2;
+        }
+        [[self touchPath] addControlPoint:controlPoint];
+    }
+}
+
+-(void)tellSimulatorFinishedMoving
+{
+    QuietLog(@"Character %d is done moving", [self actionerID]);
+    self.hasFinishedMoving = YES;
+    [[Simulator sharedSimulator] characterIsDoneMoving:self];
+}
+
+-(void)generateSpline
+{
+    CCPointArray *splinePath = [[CCPointArray alloc] init];
+    QuietLog(@"Calculating spline for %d points", [self.touchPath count]);
+    [splinePath addControlPoint: [[self touchPath] getControlPointAtIndex:0]];
+    CGPoint point0, point1, point2, point3;
+    [[self mySpline] clearPoints];
+    if([[self touchPath] count] < 5)
+    {
+        //not enough points for spline
+        return;
+    }
+    [[self mySpline] addSplinePoint:self.position];
+    [[self mySpline] addSplinePoint:[[self touchPath] getControlPointAtIndex:0]];
+    for(int i = 0; i < [[self touchPath] count] - 3; ++i)
+    {
+        float distanceFromPoint1ToPoint2 = 0;
+        point0 = [[self touchPath] getControlPointAtIndex:i];
+        point1 = [[self touchPath] getControlPointAtIndex:i + 1];
+        point2 = [[self touchPath] getControlPointAtIndex:i + 2];
+        point3 = [[self touchPath] getControlPointAtIndex:i + 3];
+        
+        CGPoint lastInterpolatedPoint = point1;
+        for(int j = 1; j < 5; ++j)
+        {
+            float t = j/5.0;
+            //(P3 - P0 + 3*P1- 3*P2) * t^3
+            
+            CGPoint newPoint0 = point3;
+            newPoint0 = ccpSub(newPoint0, point0);
+            newPoint0 = ccpAdd(newPoint0, ccpMult(point1, 3));
+            newPoint0 = ccpAdd(newPoint0, ccpMult(point2, -3));
+            newPoint0 = ccpMult(newPoint0, powf(t, 3));
+            
+            // + (2*P0 - 5*P1 + 4*P2 - P3) * t^2
+            CGPoint newPoint1 = ccpMult(point0, 2);
+            newPoint1 = ccpAdd(newPoint1, ccpMult(point1, -5));
+            newPoint1 = ccpAdd(newPoint1, ccpMult(point2, 4));
+            newPoint1 = ccpSub(newPoint1, point3);
+            newPoint1 = ccpMult(newPoint1, powf(t, 2));
+            
+            // + (-P0 + P2) * t
+            CGPoint newPoint2 = ccpSub(point2, point0);
+            newPoint2 = ccpMult(newPoint2, t);
+            
+            // + (2 * P1)
+            newPoint2 = ccpAdd(newPoint2, ccpMult(point1, 2));
+            newPoint2 = ccpAdd(newPoint2, newPoint1);
+            newPoint2 = ccpAdd(newPoint2, newPoint0);
+            newPoint2 = ccpMult(newPoint2, 0.5);
+            
+            [splinePath addControlPoint:newPoint2];
+            distanceFromPoint1ToPoint2 += ccpDistance([self.touchPath getControlPointAtIndex:[self.touchPath count] - 4], newPoint2);
+            lastInterpolatedPoint = newPoint2;
+            [[self mySpline] addSplinePoint:newPoint2];
+        }
+        [distancesBetweenPoints addObject:[NSNumber numberWithFloat:distanceFromPoint1ToPoint2]];
+    }
+    QuietLog(@"Spline length with optimizations = %d", [[splinePath controlPoints] count]);
+    
+    [self.mySpline addArrowFromPoint:[splinePath getControlPointAtIndex:[splinePath count] - 2] to:[splinePath getControlPointAtIndex:[splinePath count] - 1]];
+    
+    [self calculateSpeedsFromPoints:splinePath];
+    
+}
+
+-(void)setState:(AIState *)newState
+{
+    [currentState onExit];
+    [currentState release];
+    currentState = newState;
+    [currentState onEnter:self];
+}
+
+-(void)update:(ccTime)delta
+{
+    [self updateSpriteRotation];
+    [currentState update:delta];
+    lastPosition = self.position;
+    
+    if(self.currentHealth <= 0 && !self.isDead) {
+        [self setState:[[Dead alloc] init]];
+    }
+    
+}
+
+-(void)updateSpriteRotation
+{
+    CharacterDirection oldDirection = characterDirection_;
+    
+    if(self.position.x != lastPosition.x && self.position.y != lastPosition.y)
+    {
+        CGPoint velocityVector = ccpNormalize(ccpSub(self.position, lastPosition));
+        float upAmount = ccpDot(ccp(0, 1), velocityVector);
+        float rightAmount = ccpDot(ccp(1, 0), velocityVector);
+        rangeDirection = cosf(3.14/9.0);
+        if(upAmount >0.1 && rightAmount>0.1) //quad 1
+        {
+            if (upAmount > rangeDirection)
+                characterDirection_ = DirectionUp;
+            
+            else if (rightAmount > rangeDirection)
+                characterDirection_ = DirectionRight;
+            else
+                characterDirection_ = DirectionUpRight;
+        }
+        else if (upAmount > 0.1 && rightAmount < -0.1){
+            if(upAmount > rangeDirection){
+                characterDirection_ = DirectionUp;
+            }
+            else if (rightAmount < - rangeDirection)
+                characterDirection_ = DirectionLeft;
+            else
+                characterDirection_ = DirectionUpLeft;
+            
+        }
+        else if ( upAmount < -0.1 && rightAmount > 0.1){
+            if(upAmount < -rangeDirection)
+                characterDirection_ = DirectionDown;
+            else if(rightAmount > rangeDirection)
+                characterDirection_ = DirectionRight;
+            else
+                characterDirection_ = DirectionDownRight;
+        }
+        else if( upAmount < -0.1 && rightAmount < - 0.1){
+            if(upAmount < -rangeDirection)
+                characterDirection_ = DirectionDown;
+            else if (rightAmount < -rangeDirection)
+                characterDirection_ = DirectionLeft;
+            else
+                characterDirection_ = DirectionDownLeft;
+        }
+    }
+    if(oldDirection != characterDirection_){
+        [self setupAnim];
+    }
+}
+
+-(void)setPositionToTime:(float)t
+{
+    float delta = t - lastTime;
+    if(delta == 0)
+    {
+        //    assert(false && @"lastTime cannot be equal to t");
+    }
+    if(![distancesBetweenPoints count] || lastKnownControlPointIndex == [distancesBetweenPoints count])
+    {
+        self.preSimPoint = self.position;
+        return;
+    }
+    lastTime = t;
+    float distanceTraveledAlongSpline = desiredSpeed * delta;
+    float interpolateAmount = 0;
+    int startingControlPoint = 0; //starting control point to interpolate over
+    
+    //move up to next control point if I start between two control points
+    if(lastRemainingDistance > 0)
+    {
+        assert(lastKnownControlPointIndex < [distancesBetweenPoints count]);
+        NSNumber *lastDistance = [distancesBetweenPoints objectAtIndex:lastKnownControlPointIndex];
+        distanceTraveledAlongSpline -= lastDistance.floatValue - lastRemainingDistance;
+        lastKnownControlPointIndex++;
+    }
+    if([speedArray count] > 1 && lastKnownControlPointIndex < [distancesBetweenPoints count])
+    {
+        //move along spline
+        assert(lastKnownControlPointIndex < [distancesBetweenPoints count]);
+        for(int i = lastKnownControlPointIndex; i < [distancesBetweenPoints count] - 3; ++i)
+        {
+            NSNumber *n = [distancesBetweenPoints objectAtIndex:i];
+            if(distanceTraveledAlongSpline - n.floatValue < 0)
+            {
+                //you've moved up til the last known control point
+                startingControlPoint = i;
+                interpolateAmount = distanceTraveledAlongSpline/n.floatValue;
+                lastRemainingDistance = distanceTraveledAlongSpline;
+                lastKnownControlPointIndex = i;
+                break;
+            }
+            else
+            {
+                distanceTraveledAlongSpline -= n.floatValue;
+            }
+        }
+        if(interpolateAmount == 0) //reached end of spline
+        {
+            startingControlPoint = [[self touchPath] count] - 3;
+            interpolateAmount = 1.0f;
+        }
+        
+        //calculate final position on spline
+        
+        //(P3 - P0 + 3*P1- 3*P2) * t^3
+        CGPoint point0 = [[self touchPath] getControlPointAtIndex:startingControlPoint];
+        CGPoint point1 = [[self touchPath] getControlPointAtIndex:startingControlPoint + 1];
+        CGPoint point2 = [[self touchPath] getControlPointAtIndex:startingControlPoint + 2];
+        CGPoint point3 = [[self touchPath] getControlPointAtIndex:startingControlPoint + 3];
+        CGPoint newPoint0 = point3;
+        newPoint0 = ccpSub(newPoint0, point0);
+        newPoint0 = ccpAdd(newPoint0, ccpMult(point1, 3));
+        newPoint0 = ccpAdd(newPoint0, ccpMult(point2, -3));
+        newPoint0 = ccpMult(newPoint0, powf(interpolateAmount, 3));
+        
+        // + (2*P0 - 5*P1 + 4*P2 - P3) * t^2
+        CGPoint newPoint1 = ccpMult(point0, 2);
+        newPoint1 = ccpAdd(newPoint1, ccpMult(point1, -5));
+        newPoint1 = ccpAdd(newPoint1, ccpMult(point2, 4));
+        newPoint1 = ccpSub(newPoint1, point3);
+        newPoint1 = ccpMult(newPoint1, powf(interpolateAmount, 2));
+        
+        // + (-P0 + P2) * t
+        CGPoint newPoint2 = ccpSub(point2, point0);
+        newPoint2 = ccpMult(newPoint2, interpolateAmount);
+        
+        // + (2 * P1)
+        newPoint2 = ccpAdd(newPoint2, ccpMult(point1, 2));
+        newPoint2 = ccpAdd(newPoint2, newPoint1);
+        newPoint2 = ccpAdd(newPoint2, newPoint0);
+        newPoint2 = ccpMult(newPoint2, 0.5);
+        
+        currentPreSimPosition = newPoint2;
+    }
+}
+
+-(void)setStats:(Stats *)stats
+{
+    stats_ = stats;
+    currentHealth_ = self.maxHealth;
+    currentActionPoints_ = self.maxActionPoints;
+}
+
+-(void)setToBeIdle
+{
+    QuietLog(@"Setting character %d to be idle", [self actionerID]);
+    self.action = [Action actionWithType:MoveAction];
+    [speedArray addObject:[CCMoveTo actionWithDuration:0.1f position:[self position]]];
+}
+
+-(void)fadeOutSpline
+{
+    [self.mySpline setToFadeOut];
+}
+
+-(void)resetPath
+{
+    QuietLog(@"Resetting path for character %d", self.actionerID);
+    [[[self touchPath] controlPoints] removeAllObjects];
+    [distancesBetweenPoints removeAllObjects];
+    [speedArray removeAllObjects];
+    
+    lastTime = 0.0f;
+    lastKnownControlPointIndex = 0;
+    lastRemainingDistance = 0;
+    self.currentActionPoints = self.maxActionPoints;
+    currentPreSimPosition = [self position];
+    [self fadeOutSpline];
+}
+
+-(BOOL)hasAlreadyMoved
+{
+    return [speedArray count] > 0;
+}
+
+-(void)startMovement
+{
+    QuietLog(@"Starting movement for character %d", [self actionerID]);
+    QuietLog(@"Character %d has action: %s", [self actionerID], [[Action enumToString:[[self action] type]] UTF8String]);
+    //[self stopAllActions];
+    [speedArray addObject:[CCCallFunc actionWithTarget:self selector:@selector(tellSimulatorFinishedMoving)]];
+    CCSequence *movementAlongSpline = [CCSequence actionWithArray:speedArray];
+    movementAlongSpline.tag = 1;
+    [self runAction:movementAlongSpline];
+    lastPosition = self.position;
+    self.hasFinishedMoving = NO;
+    [self resetPath];
+    
+    
+}
+
+-(BOOL)hasCollisionWith:(CharacterObject *)character
+{
+    float distSqFromCenterToCenter = ccpLengthSQ(ccpSub([self position], [character position]));
+    if(distSqFromCenterToCenter < powf([character innerHitCircleRadius] + [self getRange], 2))
+    {
+        return YES;
+    }
+    return NO;
+}
+
+-(BOOL)hasPreCollisionWith:(CharacterObject *)character
+{
+    //    QuietLog(@"Checking precollision");
+    if(self.playerID == character.playerID)
+    {
+        // QuietLog(@"Hit a teammate");
+        return NO;
+    }
+    float distSqFromCenterToCenter = ccpLengthSQ(ccpSub([self preSimPoint], [character preSimPoint]));
+    if(distSqFromCenterToCenter < powf([character innerHitCircleRadius] + [self getRange], 2))
+    {
+        //QuietLog(@"Found precollision");
+        return YES;
+    }
+    return NO;
+}
+
+-(BOOL) makeAccuracyCheckWithPlayer:(CharacterObject *)character
+{
+    if(!character)
+    {
+        return false;
+    }
+    return (self.stats.luck + arc4random() % 10 >= character.stats.luck + arc4random() % 10);
+}
+-(float)getRange
+{
+    return [self.currentEquipment range];
+}
+
+-(int)maxHealth
+{
+    return stats_.maxHealth;
+}
+
+-(int)maxActionPoints
+{
+    return (stats_.speed * 25);
+}
+
+-(void)takeDamage:(int)damage
+{
+    self.currentHealth -= damage;
+    [[BatchBattleSpriteHandler sharedBatchBattleSpriteHandler] displayDamage:damage AtPosition:ccpAdd([self position], ccp(0,self.contentSize.height/2))];
+    if(self.currentHealth <= 0) {
+        self.isDead = YES;
+    }
+}
+
+- (void) setupAnim
+{
+    NSMutableArray* files;
+    switch (characterDirection_) {
+        case DirectionDown:
+            files = [NSMutableArray arrayWithObjects: @"character1_down1.png", @"character1_down2.png", @"character1_down3.png", @"character1_down4.png", nil];
+            break;
+        case DirectionUp:
+            files = [NSMutableArray arrayWithObjects: @"character1_up1.png", @"character1_up2.png", @"character1_up3.png", @"character1_up4.png", nil];
+            break;
+        case DirectionRight:
+            files = [NSMutableArray arrayWithObjects: @"character1_right1.png", @"character1_right2.png", @"character1_right3.png", @"character1_right4.png", nil];
+            break;
+        case DirectionLeft:
+            files = [NSMutableArray arrayWithObjects: @"character1_left1.png", @"character1_left2.png", @"character1_left3.png", @"character1_left4.png", nil];
+            break;
+        case DirectionDownLeft:
+            files = [NSMutableArray arrayWithObjects: @"character1_downleft1.png", @"character1_downleft2.png", @"character1_downleft3.png", @"character1_downleft4.png", nil];
+            
+            break;
+        case DirectionDownRight:
+            files = [NSMutableArray arrayWithObjects: @"character1_downright1.png", @"character1_downright2.png", @"character1_downright3.png", @"character1_downright4.png", nil];
+            break;
+        case DirectionUpLeft:
+            files = [NSMutableArray arrayWithObjects: @"character1_upleft1.png", @"character1_upleft2.png", @"character1_upleft3.png", @"character1_upleft4.png", nil];
+            break;
+        case DirectionUpRight:
+            files = [NSMutableArray arrayWithObjects: @"character1_upright1.png", @"character1_upright2.png", @"character1_upright3.png", @"character1_upright4.png", nil];
+            break;
+        default:
+            break;
+    }
+    
+    NSMutableArray* frames = [NSMutableArray arrayWithCapacity:10];
+    for (int i = 0; i < files.count; i++)
+    {
+        NSString* file = [files objectAtIndex:i];
+        CCSpriteFrame* frame = [[CCSpriteFrameCache sharedSpriteFrameCache] spriteFrameByName:file];
+        [frames addObject:frame];
+        
+        
+    }
+    // Clear any previous actions
+    repeatTag = 10;
+    [self stopActionByTag:repeatTag];
+    // Start new animation
+    CCAnimation* anim = [CCAnimation animationWithSpriteFrames:frames delay:0.15f];
+    CCAnimate* animate = [CCAnimate actionWithAnimation:anim];
+    CCRepeatForever* repeat = [CCRepeatForever actionWithAction:animate];
+    repeat.tag = repeatTag;
+    [self runAction:repeat];
+}
+
+
+@end

@@ -1,0 +1,25 @@
+//
+//  AIState.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "ccTypes.h"
+#import "Equipment.h"
+#import "QuietLog.h"
+
+@class CharacterObject; //woohoo forward declarations
+
+@interface AIState : NSObject
+{
+    CharacterObject *myCharacterObject;
+}
+
+-(void)onEnter:(CharacterObject *)inCharacterObject;
+-(void)update:(ccTime)delta;
+-(void)onExit;
+
+@end

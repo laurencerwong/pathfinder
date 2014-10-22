@@ -1,0 +1,538 @@
+//
+//  SpriteLayer.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import "SpriteLayer.h"
+#import "Simulator.h"
+#import "Player.h"
+#import "QuietLog.h"
+
+@implementation SpriteLayer
+
+@synthesize camera = camera_;
+@synthesize tileMapLayer = tileMapLayer_;
+@synthesize buttonsPressed = buttonsPressed_;
+@synthesize selectedPlayer = currentlySelectedCharacter;
+@synthesize endTurnButtonText = endTurnButtonText_;
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        
+        debugDraw = YES;
+        
+        self.touchEnabled = YES;
+        movingMap = NO;
+        players = [[NSMutableArray alloc] init];
+        touchPath = [[CCPointArray alloc] init];
+        splinePath = [[CCPointArray alloc] init];
+        self.endTurnButtonText = @"End Turn";
+        [Simulator sharedSimulator].currentLayerToAddThingsTo = self;
+        touchesMovedCounter = 0;
+        MaxTouchesMovedCounter = 5; //every 5 touches moved, record point
+        selectedSprite = [CCSprite spriteWithFile:@"SelectedBackground.png"];
+        [self addChild:selectedSprite];
+        selectedSprite.visible = NO;
+    }
+    return self;
+}
+
+-(void) initializeTileMap
+{
+    CCTMXObjectGroup *objectGroup = [self.tileMapLayer.tileMap objectGroupNamed:@"Objects"];
+    NSAssert(objectGroup != nil, @"tile map has no objects object layer");
+    
+    //temp code start
+    
+    
+    //Adding player code stuffs
+    NSDictionary *spawnPointOne = [objectGroup objectNamed:@"SpawnPoint1"];
+    int spawnOneX = [spawnPointOne[@"x"] integerValue];
+    int spawnOneY = [spawnPointOne[@"y"] integerValue];
+    QuietLog(@"Read coordinates: %d, %d", spawnOneX, spawnOneY);
+    QuietLog(@"Spawning player at %f,%f", spawnOneX / CC_CONTENT_SCALE_FACTOR(), spawnOneY / CC_CONTENT_SCALE_FACTOR());
+    [players addObject:[[Player alloc] init]];
+    Player *p1 = [players objectAtIndex:0];
+    [p1 initializeDefaultCharactersWithPosition:ccp(spawnOneX / CC_CONTENT_SCALE_FACTOR(), spawnOneY / CC_CONTENT_SCALE_FACTOR())];
+    
+    NSDictionary *spawnPointTwo = [objectGroup objectNamed:@"SpawnPoint2"];
+    int spawnTwoX = [spawnPointTwo[@"x"] integerValue];
+    int spawnTwoY = [spawnPointTwo[@"y"] integerValue];
+    QuietLog(@"Read coordinates: %d, %d", spawnTwoX, spawnTwoY);
+    QuietLog(@"Spawning player at %f,%f", spawnTwoX / CC_CONTENT_SCALE_FACTOR(), spawnTwoY / CC_CONTENT_SCALE_FACTOR());
+    [players addObject:[[Player alloc] init]];
+    Player *p2 = [players objectAtIndex:1];
+    [p2 initializeDefaultCharactersWithPosition:ccp(spawnTwoX / CC_CONTENT_SCALE_FACTOR(),spawnTwoY / CC_CONTENT_SCALE_FACTOR())];
+    
+    currentPlayerID = p1.playerID;
+    
+}
+
+-(void) updateEndTurnButtonText
+{
+    //works but looks ugly... might want to use states
+    
+    if([self playerHasUnmovedUnit:currentPlayerID] == NULL)
+    {
+        //update uilayer to say: select next unit instead of end turn
+        self.endTurnButtonText = @"End Turn";
+    }
+    else
+    {
+        if(currentlySelectedCharacter != NULL)
+        {
+            if([currentlySelectedCharacter hasAlreadyMoved])
+            {
+                self.endTurnButtonText = @"Select Next Character";
+            }
+            else
+            {
+                self.endTurnButtonText = @"Make Character Wait";
+            }
+        }
+        else
+        {
+            self.endTurnButtonText = @"Select Next Character";
+        }
+    }
+}
+
+-(void) update:(ccTime)delta
+{
+    [self.camera update:delta];
+    [[Simulator sharedSimulator] update:delta];
+    [self updateEndTurnButtonText];
+    if(currentlySelectedCharacter != NULL)
+    {
+        selectedSprite.visible = YES;
+        selectedSprite.position = currentlySelectedCharacter.position;
+    }
+    else
+    {
+        selectedSprite.visible = NO;
+    }
+    if(self.buttonsPressed & CombatMoveButton)
+    {
+        lastButtonPressed = CombatMoveButton;
+        QuietLog(@"Combat Move was pressed");
+    }
+    if(self.buttonsPressed & UseEquipmentButton)
+    {
+        lastButtonPressed = UseEquipmentButton;
+        QuietLog(@"Use Equip was pressed");
+    }
+    if(self.buttonsPressed & ChangeEquipmentButton)
+    {
+        lastButtonPressed = ChangeEquipmentButton;
+        QuietLog(@"Change Equip was pressed");
+    }
+    if(self.buttonsPressed & UndoButton)
+    {
+        lastButtonPressed = UndoButton;
+        QuietLog(@"Undo was pressed");
+        if(currentlySelectedCharacter != NULL)
+        {
+            [currentlySelectedCharacter resetPath];
+            [[splinePath controlPoints] removeAllObjects];
+        }
+    }
+    if(self.buttonsPressed & EndTurnButton)
+    {
+        CharacterObject *nextUnmovedCharacter = [self playerHasUnmovedUnit:currentPlayerID];
+        if(nextUnmovedCharacter == NULL)
+        {
+            numFinishedPlayers++;
+            currentPlayerID = currentPlayerID + 1; //check if the playerID actually exists
+            QuietLog(@"Now looking at player%d's turn", currentPlayerID);
+            if(numFinishedPlayers == [players count])
+            {
+                if(currentlySelectedCharacter != NULL)
+                {
+                    currentlySelectedCharacter.isSelected = NO;
+                    currentlySelectedCharacter = NULL;
+                }
+                [[Simulator sharedSimulator] preSimulate];
+                [[Simulator sharedSimulator] moveAllCharacters];
+                numFinishedPlayers = 0;
+                currentPlayerID = 0;
+            }
+        }
+        else
+        {
+            if(currentlySelectedCharacter != NULL)
+            {
+                if(![currentlySelectedCharacter hasAlreadyMoved])
+                {
+                    QuietLog(@"Making currently selected character %d do nothing", [nextUnmovedCharacter actionerID]);
+                    [currentlySelectedCharacter setToBeIdle];
+                }
+                [self changeSelectedPlayer:nextUnmovedCharacter];
+            }
+            else
+            {
+                QuietLog(@"selected character %d via end turn button", [nextUnmovedCharacter actionerID]);
+                currentlySelectedCharacter.isSelected = YES;
+                currentlySelectedCharacter = nextUnmovedCharacter;
+            }
+            self.camera.desiredPosition = [self checkBounds:[currentlySelectedCharacter position]];
+        }
+    }
+}
+
+-(CharacterObject *)playerHasUnmovedUnit:(int)inPlayerID
+{
+    NSArray *playerUnits = [[Simulator sharedSimulator] getUnitsForPlayer:inPlayerID];
+    for(CharacterObject *co in playerUnits)
+    {
+        if(![co hasAlreadyMoved])
+        {
+            return co;
+        }
+    }
+    return NULL;
+}
+
+
+-(void) draw
+{
+    [super draw];
+    
+    if(debugDraw)
+    {
+        ccDrawColor4B(0, 255, 0, 255);
+        ccDrawSolidCircle(self.camera.position, 5, 12);
+        ccDrawColor4B(255, 0, 0, 255);
+        ccDrawSolidCircle(self.camera.desiredPosition, 5, 12);
+        ccDrawColor4B(255, 0, 255, 255);
+        ccDrawSolidCircle(touchBeginLocation, 5, 12);
+        CGSize s = [[CCDirector sharedDirector] winSize];
+        CGPoint BLBound = ccp(s.width/2, s.height/2);
+        CGPoint TRBound = ccp(self.boundingBox.size.width - s.width/2, self.boundingBox.size.height - s.height/2);
+        ccDrawRect(BLBound, TRBound);
+        /*for(NSNumber *i in characters)
+         {
+         CharacterObject *tempCharacter = (CharacterObject*)[[Simulator sharedSimulator] getGameObject:i.intValue];
+         ccDrawCircle([tempCharacter position], [tempCharacter innerHitCircleRadius], 0, 32, NO);
+         ccDrawCircle([tempCharacter position], [tempCharacter getRange], 0, 32, NO);
+         }*/
+        ccDrawColor4B(255, 0, 255, 100);
+        ccPointSize(10);
+        if(currentlySelectedCharacter != NULL)
+        {
+            for(int i = 0; i < [[currentlySelectedCharacter touchPath]count]; ++i)
+            {
+                ccDrawPoint([[currentlySelectedCharacter touchPath] getControlPointAtIndex:i]);
+            }
+        }
+        if([splinePath count] > 2)
+        {
+            
+            ccDrawColor4B(0, 255, 0, 100);
+            glLineWidth(10.0f);
+            for(int i = 0; i < [splinePath count] - 1; ++i)
+            {
+                CGPoint point0, point1;
+                point0 = [splinePath getControlPointAtIndex:i];
+                point1 = [splinePath getControlPointAtIndex:i + 1];
+                ccDrawLine(point0, point1);
+            }
+        }
+    }
+}
+
+-(void) initializeCamera
+{
+    self.camera = [CameraDummyObject node];
+    self.camera.desiredPosition = [self checkBounds:ccp(0,0)];
+    self.camera.position = self.camera.desiredPosition;
+    
+    [self addChild: self.camera];
+}
+
+-(void) registerWithTouchDispatcher {
+    //the lower the touch priority the faster it gets the touch
+    [[CCDirector sharedDirector].touchDispatcher addTargetedDelegate:self priority:0 swallowsTouches:YES];
+}
+
+-(CGPoint)checkBounds:(CGPoint)inPosition
+{
+    CGSize mapSize = self.tileMapLayer.tileMap.contentSize;
+    CGPoint center = ccp([[CCDirector sharedDirector] winSize].width/2,
+                         [[CCDirector sharedDirector] winSize].height/2);
+    CGPoint desiredPosition = inPosition;
+    if(desiredPosition.x < (center.x)) {  //LEFT
+        desiredPosition.x = center.x;
+    }
+    if(desiredPosition.x > (mapSize.width - center.x)) {  //RIGHT
+        desiredPosition.x = mapSize.width - center.x;
+    }
+    if(desiredPosition.y > (mapSize.height - center.y)) {  //UP
+        desiredPosition.y = mapSize.height - center.y;
+    }
+    if(desiredPosition.y < (center.y)) {  //DOWN
+        desiredPosition.y = center.y;
+    }
+    return desiredPosition;
+}
+
+-(void) changeSelectedPlayer:(CharacterObject *)tempCharacter
+{
+    tempCharacter.isSelected = YES;
+    QuietLog(@"Character %d belongs to Player %d", [tempCharacter actionerID], [tempCharacter playerID]);
+    if(tempCharacter != currentlySelectedCharacter)
+    {
+        currentlySelectedCharacter.isSelected = NO;
+        [[splinePath controlPoints] removeAllObjects]; //stops displaying spline
+        
+    }
+    currentlySelectedCharacter = tempCharacter;
+    
+}
+
+-(BOOL) ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event
+{    
+    movingMap = NO;
+    CGPoint worldSpaceTouchLocation = [self convertTouchToNodeSpace: touch];
+    touchBeginLocation = worldSpaceTouchLocation;
+    
+    //Path drawing code begin
+    
+    //find object that you touched
+    CharacterObject *tempCharacter = [[Simulator sharedSimulator] findCharacterByTouch:worldSpaceTouchLocation];
+    if(tempCharacter != NULL)
+    {
+        [self changeSelectedPlayer:tempCharacter];
+        //self.camera.desiredPosition = [self checkBounds:[currentlySelectedCharacter position]];
+        if(![currentlySelectedCharacter hasAlreadyMoved] && !([[Simulator sharedSimulator] simulatorState] == Combat))
+        {
+            QuietLog(@"Starting new character spline");
+            //only add points if the selected character does not already have a path
+            [[currentlySelectedCharacter touchPath] addControlPoint:ccpSub(worldSpaceTouchLocation, ccp(1, 1))]; //need a "ghost" point so that the sprite starts at the location touched
+            [touchPath addControlPoint:ccpSub(worldSpaceTouchLocation, ccp(1, 1))];
+            [touchPath addControlPoint:worldSpaceTouchLocation ]; //push touch point onto touchpath
+            [[currentlySelectedCharacter touchPath] addControlPoint:worldSpaceTouchLocation];
+            currentSplineDrawingState = Drawing;
+        }
+        else
+        {
+            //display the characters already made path
+            QuietLog(@"Displaying premade character spline");
+            [self createSplineFromPoints:[tempCharacter touchPath]];
+        }
+    }
+    else
+    {
+        if(currentlySelectedCharacter != NULL)
+        {
+            currentlySelectedCharacter.isSelected = NO;
+        }
+        currentlySelectedCharacter = NULL;
+        [[touchPath controlPoints] removeAllObjects];
+        [[splinePath controlPoints] removeAllObjects];
+        movingMap = YES;
+    }
+    //Path drawing code end
+    return YES;
+}
+
+-(BOOL)ignoreNextTouchPoint:(CGPoint)inPoint
+{
+    if([touchPath count] > 3)
+    {
+        int touchPathCount = [touchPath count];
+        CGPoint lastTouchVector = ccpSub([touchPath getControlPointAtIndex:touchPathCount - 3], [touchPath getControlPointAtIndex:touchPathCount - 2]);
+        CGPoint newTouchVector = ccpSub(inPoint, [touchPath getControlPointAtIndex:touchPathCount - 1]);
+        float angle = ccpDot(ccpNormalize(lastTouchVector), ccpNormalize(newTouchVector));
+        angle = 180 - CC_RADIANS_TO_DEGREES(acosf(angle));
+        //QuietLog(@"Angle = %f", angle);
+        if(angle < 5)
+        {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+-(void) ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    BOOL ignorePoint = NO;
+    //Camera movement
+    CGPoint touchLocation = [self convertTouchToNodeSpace: touch];
+    CGPoint drag = ccpSub(touchBeginLocation, touchLocation);
+    CGPoint desiredPosition = ccpAdd(drag, self.camera.position);
+    
+    //QuietLog(@"Touch moved to: (%.1f, %.1f)", touchLocation.x, touchLocation.y);
+    
+    //Determine collision
+    
+    BOOL isTargetCollideable = NO;
+    CGPoint tileCoord = [self.tileMapLayer tileCoordForPosition:ccpMult(touchLocation, CC_CONTENT_SCALE_FACTOR())];
+    int tileGid = [self.tileMapLayer.meta tileGIDAt:tileCoord];
+    if (tileGid) {
+        NSDictionary *properties = [self.tileMapLayer.tileMap propertiesForGID:tileGid];
+        if (properties) {
+            NSString *collision = properties[@"Collidable"];
+            if (collision && [collision isEqualToString:@"True"]) {
+                isTargetCollideable = true;
+                currentSplineDrawingState = JustCollided;
+            }
+        }
+    }
+    
+    //spline stuff begin
+    
+    if(currentSplineDrawingState == Drawing) {
+        
+        if(currentlySelectedCharacter != NULL &&
+           !([[Simulator sharedSimulator] simulatorState] == Combat))
+        {
+            if(![currentlySelectedCharacter hasAlreadyMoved] &&
+               ([currentlySelectedCharacter playerID] == currentPlayerID))
+            {
+                ignorePoint = [self ignoreNextTouchPoint:touchLocation];
+                if((touchesMovedCounter == MaxTouchesMovedCounter) || ccpDistanceSQ(touchLocation, [touchPath getControlPointAtIndex:[touchPath count] - 1]) > 100)
+                {
+                    [touchPath addControlPoint:touchLocation];
+                    if(!ignorePoint)
+                    {
+                        //we only ignore the point for the player because otherwise it would look weird if we displayed it
+                        [[currentlySelectedCharacter touchPath] addControlPoint:touchLocation];
+                    }
+                    touchesMovedCounter = 0;
+                    
+                    CGPoint predictedLocation = touchLocation;
+                    predictedLocation = ccpAdd(predictedLocation, ccpSub([touchPath getControlPointAtIndex:[touchPath count] - 2], predictedLocation)); //add predicted point
+                    [touchPath addControlPoint:predictedLocation];
+                    [self createSplineFromPoints:touchPath];
+                    [touchPath removeControlPointAtIndex:[touchPath count] -1]; //remove predicted point
+                }
+                else
+                {
+                    ++touchesMovedCounter;
+                }
+            }
+        }
+    }
+    else if(currentSplineDrawingState == JustCollided) {
+        //[self finalizeSplineWithTouch:touch]; //DOESN'T WORK, adds ghost point.
+        if([[currentlySelectedCharacter touchPath] count] <= 4)
+        {
+            QuietLog(@"Not enough touch points");
+            [currentlySelectedCharacter resetPath];
+        }
+        else
+        {
+            [currentlySelectedCharacter generateSpline];
+        }
+        [[touchPath controlPoints] removeAllObjects];
+        currentSplineDrawingState = AlreadyCollided;
+    }
+    
+    //Bounds checking against the map to not move offscreen
+    desiredPosition = [self checkBounds:desiredPosition];
+    if(movingMap)
+    {
+        self.camera.desiredPosition = desiredPosition;
+    }
+}
+
+-(void) ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    movingMap = NO;
+    
+    if(currentSplineDrawingState != AlreadyCollided) {
+        [self finalizeSplineWithTouch:touch];
+    }
+}
+
+-(void) finalizeSplineWithTouch: (UITouch*) touch {
+    if(currentlySelectedCharacter != NULL && !([[Simulator sharedSimulator] simulatorState] == Combat))
+    {
+        if(![currentlySelectedCharacter hasAlreadyMoved] &&
+           ([currentlySelectedCharacter playerID] == currentPlayerID))
+        {
+            CGPoint location = [self convertTouchToNodeSpace: touch];
+            [touchPath addControlPoint: location];
+            [[currentlySelectedCharacter touchPath] addControlPoint:location];
+            [[currentlySelectedCharacter touchPath] addControlPoint:ccpAdd(location, ccp(0.5, 0.5))]; //need a "ghost" point so that the sprite ends at the location touched
+            [self createSplineFromPoints:touchPath];
+            QuietLog(@"Spline length without optimization: %d", [[splinePath controlPoints] count]);
+            if([[currentlySelectedCharacter touchPath] count] == 4)
+            {
+                QuietLog(@"Not enough touch points");
+                [currentlySelectedCharacter resetPath];
+            }
+            else
+            {
+                [currentlySelectedCharacter generateSpline];
+            }
+        }
+    }
+    [[touchPath controlPoints] removeAllObjects];
+    //[self calculateSpeedsFromPoints:splinePath];
+    
+}
+
+-(void)createSplineFromPoints:(CCPointArray *)inPoints
+{
+    [[splinePath controlPoints] removeAllObjects];
+    if([inPoints count] < 4)
+    {
+        //not enough points for spline
+        return;
+    }
+    //    QuietLog(@"Calculating spline for %d points", [inPoints count]);
+    [splinePath addControlPoint: [inPoints getControlPointAtIndex:0]];
+    CGPoint point0, point1, point2, point3;
+    
+    for(int i = 0; i < [inPoints count] - 3; ++i)
+    {
+        point0 = [inPoints getControlPointAtIndex:i];
+        point1 = [inPoints getControlPointAtIndex:i + 1];
+        point2 = [inPoints getControlPointAtIndex:i + 2];
+        point3 = [inPoints getControlPointAtIndex:i + 3];
+        for(int j = 1; j < 5; ++j)
+        {
+            float t = j/5.0;
+            //(P3 - P0 + 3*P1- 3*P2) * t^3
+            
+            CGPoint newPoint0 = point3;
+            newPoint0 = ccpSub(newPoint0, point0);
+            newPoint0 = ccpAdd(newPoint0, ccpMult(point1, 3));
+            newPoint0 = ccpAdd(newPoint0, ccpMult(point2, -3));
+            newPoint0 = ccpMult(newPoint0, powf(t, 3));
+            
+            // + (2*P0 - 5*P1 + 4*P2 - P3) * t^2
+            CGPoint newPoint1 = ccpMult(point0, 2);
+            newPoint1 = ccpAdd(newPoint1, ccpMult(point1, -5));
+            newPoint1 = ccpAdd(newPoint1, ccpMult(point2, 4));
+            newPoint1 = ccpSub(newPoint1, point3);
+            newPoint1 = ccpMult(newPoint1, powf(t, 2));
+            
+            // + (-P0 + P2) * t
+            CGPoint newPoint2 = ccpSub(point2, point0);
+            newPoint2 = ccpMult(newPoint2, t);
+            
+            // + (2 * P1)
+            newPoint2 = ccpAdd(newPoint2, ccpMult(point1, 2));
+            newPoint2 = ccpAdd(newPoint2, newPoint1);
+            newPoint2 = ccpAdd(newPoint2, newPoint0);
+            newPoint2 = ccpMult(newPoint2, 0.5);
+            
+            [splinePath addControlPoint:newPoint2];
+        }
+    }
+    //    QuietLog(@"splinePath size = %d", [splinePath count]);
+}
+
+
+- (void)dealloc
+{
+    [super dealloc];
+}
+
+@end

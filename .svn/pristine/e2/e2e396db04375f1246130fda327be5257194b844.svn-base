@@ -1,0 +1,27 @@
+//
+//  AStarPathfinding.h
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/24/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "cocos2d.h"
+#import "TileMapLayer.h"
+#import "Node.h"
+
+typedef enum ExploreState_ { Unexplored, Open, Closed } ExploreState;
+
+@interface AStarPathfinding : NSObject
+{
+    TileMapLayer *tileMapLayer_;
+}
+
+@property (nonatomic, retain) TileMapLayer *tileMapLayer;
+
++(AStarPathfinding*) sharedPathfinder;
+-(NSMutableArray*) getTraverseableNeighborsForTileCoord:(CGPoint)tileCoord;
+-(NSMutableArray*) computePathFrom:(CGPoint)origin To:(CGPoint)target;
+
+@end

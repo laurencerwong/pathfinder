@@ -1,0 +1,55 @@
+//
+//  TileMapLayer.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import "TileMapLayer.h"
+
+
+@implementation TileMapLayer
+
+@synthesize tileMap = tileMap_;
+@synthesize background = background_;
+@synthesize meta = meta_;
+
+// Helper class method that creates a Scene with the HelloWorldLayer as the only child.
++(CCScene *) scene
+{
+	// 'scene' is an autorelease object.
+	CCScene *scene = [CCScene node];
+    
+	// 'layer' is an autorelease object.
+	TileMapLayer *layer = [TileMapLayer node];
+    
+	// add layer as a child to scene
+	[scene addChild: layer];
+    
+	// return the scene
+	return scene;
+}
+
+-(id) init
+{
+	if( (self=[super init]) ) {
+        
+        self.tileMap = [CCTMXTiledMap tiledMapWithTMXFile:@"desert.tmx"];
+        self.background = [self.tileMap layerNamed:@"Background"];
+        self.meta = [self.tileMap layerNamed:@"Meta"];
+        self.meta.visible = NO;
+        
+        [self addChild:self.tileMap z:-1];
+    }
+    return self;
+}
+
+-(CGPoint) tileCoordForPosition:(CGPoint)position {
+    int x = position.x / self.tileMap.tileSize.width;
+    int y = ((self.tileMap.mapSize.height * self.tileMap.tileSize.height) - position.y) / self.tileMap.tileSize.height; //Flips to account for (0,0) being in top left in tile coordinates.
+    return ccp(x, y);
+}
+
+@end
+

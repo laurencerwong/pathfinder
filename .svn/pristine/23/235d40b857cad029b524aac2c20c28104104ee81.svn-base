@@ -1,0 +1,222 @@
+//
+//  SplinePolygon.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/22/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "SplinePolygon.h"
+#import "ccShaders.h"
+#import "CCShaderCache.h"
+#import "CCGLProgram.h"
+#import "CGPointExtension.h"
+#import "QuietLog.h"
+#import "CCFileUtils.h"
+#import "ColoredSprite.h"
+
+@implementation SplinePolygon
+
+@synthesize width = width_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        blockSize = 100;
+        currentNormal = ccp(0, 1);
+        self.width = 5;
+        distance = 0;
+        points = (SplineVertex *)malloc(sizeof(SplineVertex)* 0);
+        colorPoints = (ccColor4B *)malloc(sizeof(SplineVertex)* 0);
+        
+        const GLchar * fragmentSource = (GLchar*) [[NSString stringWithContentsOfFile:[[CCFileUtils sharedFileUtils] fullPathForFilename:@"ChangeColor.fsh"] encoding:NSUTF8StringEncoding error:nil] UTF8String];
+        
+        if(fragmentSource == NULL)
+        {
+            assert(false);
+        }
+        self.shaderProgram  = [[CCGLProgram alloc] initWithVertexShaderByteArray:ccPositionTextureA8Color_vert fragmentShaderByteArray:fragmentSource];
+        [self.shaderProgram addAttribute:kCCAttributeNamePosition index:kCCVertexAttrib_Position];
+        [self.shaderProgram addAttribute:kCCAttributeNameTexCoord index:kCCVertexAttrib_TexCoords];
+        [self.shaderProgram link];
+        [self.shaderProgram updateUniforms];
+        [self.shaderProgram use];
+        
+        fromColor_ = ccc4f(1, 1, 1, 1);
+        toColor_ = ccc4f(1, 1, 1, 1);
+        toColorLocation = glGetUniformLocation(self.shaderProgram->_program, "v_toColor");
+        glUniform4f(toColorLocation, toColor_.r, toColor_.g, toColor_.b, toColor_.a);
+        fromColorLocation = glGetUniformLocation(self.shaderProgram->_program, "v_fromColor");
+        glUniform4f(fromColorLocation, fromColor_.r, fromColor_.g, fromColor_.b, fromColor_.a);
+        timeLocation = glGetUniformLocation(self.shaderProgram->_program, "f_time");
+        glUniform1f(timeLocation, 1.0);
+        glBlendFunc(GL_ONE_MINUS_DST_ALPHA, GL_DST_ALPHA);
+        
+        [self scheduleUpdate];
+    }
+    return self;
+}
+
+-(Vertex3D)cross:(Vertex3D *)vector1 withVector:(Vertex3D *)vector2
+{
+    Vertex3D crossProduct;
+    crossProduct.x = (vector1->y * vector2->z) - (vector2->y * vector1->z);
+    crossProduct.y = (vector2->x * vector1->z) - (vector1->x * vector2->z);
+    crossProduct.z = (vector1->x * vector2->y) - (vector2->x * vector1->y);
+    return crossProduct;
+}
+
+-(void)addSplinePoint:(CGPoint)point
+{
+    if(numPoints > 0)
+    {
+        CGPoint oldPoint = ccpNormalize(
+                                        ccpSub(point, lastPoint)
+                                        );
+
+        Vertex3D vectorFromLastPointToCurrentPoint;
+        vectorFromLastPointToCurrentPoint.x = oldPoint.x;
+        vectorFromLastPointToCurrentPoint.y = oldPoint.y;
+        vectorFromLastPointToCurrentPoint.z = 0;
+        
+        Vertex3D negativeZAxis;
+        negativeZAxis.x = 0;
+        negativeZAxis.y = 0;
+        negativeZAxis.z = -1;
+        
+        vectorFromLastPointToCurrentPoint = [self cross:&vectorFromLastPointToCurrentPoint withVector:&negativeZAxis];
+        currentNormal.x = vectorFromLastPointToCurrentPoint.x;
+        currentNormal.y = vectorFromLastPointToCurrentPoint.y;
+        currentNormal = ccpNormalize(currentNormal);
+    }
+    else if(numPoints == 0)
+    {
+//        firstPoint = point;
+    }
+    SplineVertex newPoint;
+    newPoint.x = point.x + currentNormal.x * self.width;
+    newPoint.y = point.y + currentNormal.y * self.width;
+    [self addPoint:newPoint];
+    newPoint.x = point.x - currentNormal.x * self.width;
+    newPoint.y = point.y - currentNormal.y * self.width;
+    [self addPoint:newPoint];
+    lastPoint = point;
+}
+
+-(void)addPoint:(SplineVertex)point
+{
+    int newBlockCount = numPoints / blockSize + 1;
+    //handle resizing
+    if(numPoints % blockSize == 0)
+    {
+        points = (SplineVertex *)realloc(points, sizeof(SplineVertex)* blockSize * newBlockCount);
+
+        colorPoints = (ccColor4B *)realloc(colorPoints, sizeof(ccColor4B)* blockSize * newBlockCount);
+        blockCount = newBlockCount;
+    }
+    points[pointIndex] = point;
+    
+    colorPoints[pointIndex++] = ccc4(255, 255, 255, 255);
+    numPoints = pointIndex;
+    
+    
+}
+
+-(void)update:(ccTime)delta
+{
+    time += delta;
+    [self.shaderProgram use];
+    glUniform1f(timeLocation, time);
+    for(ColoredSprite *cs in [self children])
+    {
+        [cs update:delta];
+    }
+    
+}
+
+-(void)setToColor:(ccColor4F)color
+{
+    fromColor_ = toColor_;
+    toColor_ = color;
+    time = 0.0;
+    [self.shaderProgram use];
+    glUniform4f(fromColorLocation, fromColor_.r, fromColor_.g, fromColor_.b, fromColor_.a);
+    glUniform4f(toColorLocation, toColor_.r, toColor_.g, toColor_.b, toColor_.a);
+    glUniform1f(timeLocation, time);
+    for(ColoredSprite *cs in [self children])
+    {
+        cs.color = color;
+    }
+}
+
+-(void)setToFadeOut
+{
+    ccColor4F currentColor = self.toColor;
+    currentColor.a = 0.0;
+    self.toColor = currentColor;
+    [self scheduleOnce:@selector(clearPoints) delay:1.0];
+    [self removeAllChildren];
+}
+
+-(void)draw
+{
+    if(numPoints > 2)
+    {
+        ccGLEnableVertexAttribs( kCCVertexAttribFlag_Position);
+        [self.shaderProgram use];
+        [self.shaderProgram setUniformsForBuiltins];
+        
+        glEnableVertexAttribArray(kCCVertexAttribFlag_Position);
+        glVertexAttribPointer(kCCVertexAttrib_Position, 2, GL_FLOAT, GL_FALSE, 0, points);
+        
+/*        glEnableVertexAttribArray(kCCVertexAttribFlag_Color);
+        glVertexAttribPointer(kCCVertexAttrib_Color, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, colorPoints);
+ */
+        
+        
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, numPoints);
+    }
+}
+
+-(void) addArrowFromPoint:(CGPoint)point1 to:(CGPoint)point2
+{
+    ColoredSprite *newArrow = [ColoredSprite ColoredSpriteWithFile:@"PathArrow.png" AndColor:ccc4f(1.0, 1.0, 1.0, 1.0)];
+    [self addChild:newArrow];
+    newArrow.position = point2;
+    newArrow.scale = 1.5;
+    
+    CGPoint lastInterpolatedPointVector = ccpNormalize(ccpSub(point2, point1));
+    float rotationAmount = CC_RADIANS_TO_DEGREES(
+                                                 acosf(
+                                                       ccpDot(lastInterpolatedPointVector, ccp(1, 0))
+                                                       )
+                                                 );
+    if(ccpCross(ccp(1, 0), lastInterpolatedPointVector) > 0)
+    {
+        rotationAmount = 360 - rotationAmount;
+    }
+    newArrow.rotation = rotationAmount;
+}
+
+-(void) clearPoints
+{
+    currentNormal = ccp(0, 1);
+    free(points);
+    free(colorPoints);
+    points = malloc(0);
+    colorPoints = malloc(0);
+    pointIndex = 0;
+    numPoints = 0;
+    self.toColor = ccc4f(1.0, 1.0, 1.0, 1.0);
+    QuietLog(@"Clearing Spline");
+}
+
+- (void)dealloc
+{
+    free(points);
+    free(colorPoints);
+    [super dealloc];
+}
+
+@end

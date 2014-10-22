@@ -1,0 +1,58 @@
+//
+//  Combat.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/9/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Combat.h"
+#import "CharacterObject.h"
+#import "Simulator.h"
+#import "WaitingForOrder.h"
+#import "BatchBattleSpriteHandler.h"
+
+@implementation Combat
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+
+    myCharacterObject = inCharacterObject;
+    characterInCombatWith = [[Simulator sharedSimulator] getNearestCollidingCharacterTo:myCharacterObject];
+    
+    //do battle calculations
+    float damage = inCharacterObject.stats.attack + inCharacterObject.currentEquipment.stats.attack + arc4random() % 5;
+    QuietLog(@"Character %d entered combat", [myCharacterObject actionerID]);
+    
+    if(characterInCombatWith && [myCharacterObject makeAccuracyCheckWithPlayer:characterInCombatWith])  //Did I hit him?
+    {
+        [myCharacterObject doAttackAnimation];
+        [characterInCombatWith takeDamage:damage];
+
+        QuietLog(@"Character %d dealt %d damage to character %d", [myCharacterObject actionerID], (int)damage, [characterInCombatWith actionerID]);
+    }
+    else
+    {
+        [[BatchBattleSpriteHandler sharedBatchBattleSpriteHandler] displayTimedMessage:@"Missed" originatingFrom:myCharacterObject.position withTimeout:3.0];
+        QuietLog(@"Character %d missed Character %d", myCharacterObject.actionerID, characterInCombatWith.actionerID);
+    }
+    [myCharacterObject stopActionByTag:1];
+    if(![myCharacterObject hasFinishedMoving])
+    {
+        [myCharacterObject tellSimulatorFinishedMoving];
+    }
+
+}
+
+-(void)update:(ccTime)delta
+{
+    [myCharacterObject setState:[[WaitingForOrder alloc] init]];
+}
+
+-(void)onExit
+{
+    
+}
+
+
+@end

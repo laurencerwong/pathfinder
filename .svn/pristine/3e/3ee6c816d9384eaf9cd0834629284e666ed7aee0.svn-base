@@ -1,0 +1,44 @@
+//
+//  TileMapLayer.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import "TileMapLayer.h"
+
+
+@implementation TileMapLayer
+
+
+// Helper class method that creates a Scene with the HelloWorldLayer as the only child.
++(CCScene *) scene
+{
+	// 'scene' is an autorelease object.
+	CCScene *scene = [CCScene node];
+    
+	// 'layer' is an autorelease object.
+	TileMapLayer *layer = [TileMapLayer node];
+    
+	// add layer as a child to scene
+	[scene addChild: layer];
+    
+	// return the scene
+	return scene;
+}
+
+-(id) init
+{
+	if( (self=[super init]) ) {
+        
+        self.tileMap = [CCTMXTiledMap tiledMapWithTMXFile:@"desert.tmx"];
+        self.background = [_tileMap layerNamed:@"Background"];
+        
+        [self addChild:_tileMap z:-1];
+    }
+    return self;
+}
+
+@end
+

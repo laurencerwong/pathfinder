@@ -1,0 +1,34 @@
+//
+//  Dead.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/17/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Dead.h"
+#import "CharacterObject.h"
+#import "BatchBattleSpriteHandler.h"
+
+@implementation Dead
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+    myCharacterObject = inCharacterObject;
+    myCharacterObject.isDead = YES;
+    QuietLog(@"Character %d entered dead", [myCharacterObject actionerID]);
+    [[BatchBattleSpriteHandler sharedBatchBattleSpriteHandler] displayBloodExplosionAtPosition:myCharacterObject.position];
+    //Set animation to dead animation
+}
+
+-(void)update:(ccTime)delta
+{
+    //if anim done, set character to dead
+}
+
+-(void)onExit
+{
+    
+}
+
+@end

@@ -1,0 +1,407 @@
+//
+//  Simulator.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Simulator.h"
+#import "WaitingForOrder.h"
+#import "QuietLog.h"
+#import "SplinePolygon.h"
+#import "CCActionInterval.h"
+#import "BatchBattleSpriteHandler.h"
+
+
+@implementation Simulator
+
+@synthesize currentLayerToAddThingsTo = currentLayerToAddThingsTo_;
+@synthesize charactersDoneMoving = charactersDoneMoving_;
+@synthesize simulatorState = simulatorState_;
+
++(Simulator *)sharedSimulator
+{
+    static Simulator *sharedSimulator;
+    
+    if(!sharedSimulator)
+    {
+        sharedSimulator = [[Simulator alloc] init];
+    }
+    return sharedSimulator;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        nextActionerID = 0;
+        battles = [[NSMutableArray alloc] init];
+        playerUnits = [[NSMutableArray alloc] init];
+        
+        maxTimeToSimulate = 5.0f;
+        simulationTimeDivisions = 100;
+        self.simulatorState = TacticalState;
+        currentlySimulatingBattle = nil;
+        //temp code
+        
+        
+        //end temp code
+    }
+    return self;
+}
+
+-(int)initializePlayer
+{
+    [playerUnits addObject:[[NSMutableDictionary alloc] init]];
+    return [playerUnits count] - 1;
+}
+
+-(CharacterObject *)getCharacterObject:(NSNumber *)inActionerID
+{
+    for(NSDictionary *d in playerUnits) {
+        CharacterObject *c = [d objectForKey:inActionerID];
+        if(c != nil) {
+            return c;
+        }
+    }
+    return nil;
+}
+
+-(NSArray *)getUnitsForPlayer:(int)inPlayerID
+{
+    NSMutableDictionary *playersControlledUnits = [playerUnits objectAtIndex:inPlayerID];
+    return [playersControlledUnits allValues];
+}
+
+-(int)addCharacterObject:(CharacterObject *)inCharacterObject forPlayer:(int)inPlayerID;
+{
+    NSMutableDictionary *playersUnits = [playerUnits objectAtIndex:inPlayerID];
+    [playersUnits setObject:inCharacterObject forKey:[NSNumber numberWithInt:nextActionerID]];
+    [[self currentLayerToAddThingsTo] addChild:inCharacterObject z:10];
+    inCharacterObject.actionerID = nextActionerID;
+    SplinePolygon *tempSplinePolygon = [SplinePolygon node];
+    [[self currentLayerToAddThingsTo] addChild:tempSplinePolygon];
+    inCharacterObject.mySpline = tempSplinePolygon;
+    return nextActionerID++;
+}
+-(void)battleDone:(Battle *)battle
+{
+    [battles removeObject:battle];
+    if([battles count] > 0)
+    {
+        QuietLog(@"A battle finished and another one exists. Starting new battle");
+        Battle *newBattle = [battles objectAtIndex:0];
+        [newBattle startRunningBattle];
+        currentlySimulatingBattle = newBattle;
+    }
+    else
+    {
+        QuietLog(@"A battle finished and no more battles exist.");
+        currentlySimulatingBattle = nil;
+        [self forceEndTurn];
+    }
+}
+
+-(void)characterIsDoneMoving:(CharacterObject *)character
+{
+    QuietLog(@"Character %d told simulator they is done moving", [character actionerID]);
+    ++self.charactersDoneMoving;
+    for(Battle *b in battles)
+    {
+        if([b containsCombatant:[character actionerID]])
+        {
+            b.numFinishedCombatants++;
+            break;
+        }
+    }
+}
+-(void)addBattle:(int)inActionerID1
+{
+    //    QuietLog(@"Adding new battle with character %d and character %d", inActionerID1, inActionerID2);
+    Battle *newBattleObject = [[Battle alloc] initWithCombatant:inActionerID1];
+    [battles addObject:newBattleObject];
+    [nonCombatCharacters removeObject:[self getCharacterObject:[NSNumber numberWithInt:inActionerID1]]];
+}
+
+-(void)addBattle:(int)inActionerID1 with:(int)inActionerID2
+{
+    for(Battle *bo in battles)
+    {
+        if([bo containsCombatant:inActionerID1])
+        {
+            //            QuietLog(@"Found existing battle with %d and %d", inActionerID1, inActionerID2);
+            [bo addCombatant:inActionerID2];
+            [nonCombatCharacters removeObject:[self getCharacterObject:[NSNumber numberWithInt:inActionerID2]]];
+            
+            return;
+        }
+        else if([bo containsCombatant:inActionerID2])
+        {
+            //            QuietLog(@"Found existing battle with %d and %d", inActionerID1, inActionerID2);
+            [bo addCombatant:inActionerID1];
+            [nonCombatCharacters removeObject:[self getCharacterObject:[NSNumber numberWithInt:inActionerID1]]];
+            
+            return;
+        }
+    }
+    //    QuietLog(@"Adding new battle with character %d and character %d", inActionerID1, inActionerID2);
+    Battle *newBattleObject = [[Battle alloc] initWithCombatants:inActionerID1 and:inActionerID2];
+    [battles addObject:newBattleObject];
+    [nonCombatCharacters removeObject:[self getCharacterObject:[NSNumber numberWithInt:inActionerID1]]];
+    [nonCombatCharacters removeObject:[self getCharacterObject:[NSNumber numberWithInt:inActionerID2]]];
+}
+
+-(CharacterObject *)findCharacterByTouch:(CGPoint)worldSpaceTouch
+{
+    for(NSDictionary *d in playerUnits) {
+        for(CharacterObject *c in [d allValues]) {
+            CharacterObject *tempCharacter = c;
+            
+            if(ccpLengthSQ(ccpSub(worldSpaceTouch, [tempCharacter position])) < powf([tempCharacter innerHitCircleRadius], 2.0))
+            {
+                tempCharacter.isSelected = YES;
+                return tempCharacter;
+            }
+        }
+    }
+    
+    return nil;
+}
+
+-(NSArray *) getAllCharacterObjects
+{
+    NSMutableArray *allCharacters = [[[NSMutableArray alloc] init] autorelease];
+    
+    for(NSDictionary *d in playerUnits) {
+        for(CharacterObject *c in [d allValues]) {
+            [allCharacters addObject:c];
+        }
+    }
+    
+    return allCharacters;
+}
+
+-(void)update:(ccTime)delta
+{
+    switch(self.simulatorState)
+    {
+        case TacticalState:
+            deltaTime = 0.0;
+            break;
+        case PreSimState:
+            break;
+        case CombatState:
+        {
+            deltaTime += delta;
+            int numCharacters = 0;
+            
+            for(NSDictionary *d in playerUnits) {
+                for( CharacterObject *c in [d allValues] )
+                {
+                    [c update:delta];
+                    numCharacters++;
+                }
+            }
+            
+            if(currentlySimulatingBattle)
+            {
+                [currentlySimulatingBattle update:delta];
+            }
+            if(self.charactersDoneMoving >= numCharacters && [[BatchBattleSpriteHandler sharedBatchBattleSpriteHandler] projectilesFinished])
+            {
+                //tell spritelayer that i'm done
+                self.simulatorState = TacticalState;
+                for(NSDictionary *d in playerUnits) {
+                    for( CharacterObject *c in [d allValues] )
+                    {
+                        [c setState:[[WaitingForOrder alloc] init]];
+                    }
+                }
+            }
+            if(deltaTime > 5.0)
+            {
+                [self forceEndTurn];
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+-(void) forceEndTurn
+{
+    if(self.simulatorState != TacticalState)
+    {
+        self.simulatorState = TacticalState;
+        for(NSDictionary *d in playerUnits) {
+            for( CharacterObject *c in [d allValues] )
+            {
+                [c setState:[[WaitingForOrder alloc] init]];
+            }
+        }
+    }
+}
+
+-(void)preSimulate
+{
+    QuietLog(@"Running Pre-Simulation");
+    self.simulatorState = PreSimState;
+    //do cleanup for last turn
+    [battles removeAllObjects];
+    NSArray *allCharacters = [self getAllCharacterObjects];
+    nonCombatCharacters = [[NSMutableArray arrayWithArray:allCharacters]retain];
+    float currentSimulationTime = 1.0/simulationTimeDivisions;
+    while(currentSimulationTime < maxTimeToSimulate)
+    {
+        for( CharacterObject *n1 in allCharacters )
+        {
+            [n1 setPositionToTime:currentSimulationTime];
+        }
+        currentSimulationTime += 1.0/simulationTimeDivisions;
+        
+        for( CharacterObject *tempCharacter in allCharacters )
+        {
+            //QuietLog(@"Doing presim for character %d", [tempCharacter actionerID]);
+            for(int i = 0; i < [playerUnits count]; i++)
+            {
+                if(i != [tempCharacter playerID])
+                {
+                    NSMutableDictionary *otherPlayerUnits = [playerUnits objectAtIndex:i];
+                    for( CharacterObject *c in [otherPlayerUnits allValues] )
+                    {
+                        if([tempCharacter hasPreCollisionWith:c])
+                        {
+                            [self addBattle:tempCharacter.actionerID with:c.actionerID];
+                        }
+                    }
+                }
+            }
+            
+            
+        }
+    }
+}
+
+-(void)moveAllCharacters
+{
+    self.simulatorState = CombatState;
+    self.charactersDoneMoving = 0;
+    //only loop through nonCombatCharacters
+    NSArray *nonCombatCharactersReadOnly = [[NSArray alloc] initWithArray:nonCombatCharacters];
+    if([nonCombatCharacters count])
+    {
+        for(CharacterObject *co in nonCombatCharactersReadOnly )
+        {
+                        [co startMovement];
+            //[self addBattle: [co actionerID]];
+        }
+    }
+    //Start battle and have that battle call a "battleFinished" method to tell the simulator to start the next battle
+    if([battles count])
+    {
+        QuietLog(@"Simulator starting first battle");
+        Battle *newBattle = [battles objectAtIndex:0];
+        [newBattle startRunningBattle];
+        currentlySimulatingBattle = newBattle;
+    }
+    
+}
+
+-(CharacterObject *)getNearestCollidingCharacterToNode:(CCNode *)node fromCharacter:(CharacterObject *)character
+{
+    for(CharacterObject *possibleCollider in [self getAllCharacterObjects])
+    {
+        if([possibleCollider playerID] != [character playerID])
+        {
+            if([possibleCollider hasCollisionWithNode:node])
+            {
+                return possibleCollider;
+            }
+        }
+    }
+    return nil;
+}
+
+-(CharacterObject *)getNearestCollidingCharacterTo:(CharacterObject *)character
+{
+    for(Battle *b in battles)
+    {
+        NSMutableArray *battleCombatants = [b combatants];
+        for(NSNumber *n in battleCombatants)
+        {
+            CharacterObject *possibleCollider = [self getCharacterObject:n];
+            if([possibleCollider playerID] != [character playerID])
+            {
+                if([character hasCollisionWith:possibleCollider])
+                {
+                    return possibleCollider;
+                }
+            }
+        }
+    }
+    return nil;
+}
+
+-(BOOL) cullDeadCharactersInLayerLayer:(CCLayer *)layer
+{
+    BOOL someoneDied = NO;
+    
+    for(CharacterObject *c in [self getAllCharacterObjects]) {
+        if(c.isDead) {
+            [self killCharacterObject:c InLayer:layer];
+            someoneDied = YES;
+        }
+    }
+    
+    return someoneDied;
+}
+
+-(void) killCharacterObject:(CharacterObject*) character InLayer:(CCLayer *) layer
+{
+    [layer removeChild:character cleanup:YES];
+    for(NSMutableDictionary *d in playerUnits) {
+        [d removeObjectForKey:[NSNumber numberWithInt:character.actionerID]];
+    }
+}
+
+-(int) checkForVictory
+{
+    int numPlayers = playerUnits.count;
+    int numLivingPlayers = numPlayers;
+    
+    for(NSDictionary *d in playerUnits) {
+        if(d.count == 0) {
+            numLivingPlayers--;
+        }
+    }
+    
+    if(numLivingPlayers == 1) {
+        return YES;
+    } else {
+        return NO;
+    }
+}
+
+- (void)dealloc
+{
+    
+    //    for( NSNumber *key in gameObjects)
+    //    {
+    //        [[gameObjects objectForKey:key] dealloc];
+    //    }
+    //    [gameObjects release];
+    
+    [battles release];
+    
+    [super dealloc];
+}
+-(void)wipeEverything
+{
+    [playerUnits removeAllObjects];
+    [nonCombatCharacters removeAllObjects];
+    [battles removeAllObjects];
+    
+}
+@end

@@ -1,0 +1,32 @@
+//
+//  Equipment.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/13/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Equipment.h"
+
+@implementation Equipment
+@synthesize stats = stats_;
+@synthesize type = type_;
+
+- (id)initWithStats:(Stats *)stats
+{
+    self = [super init];
+    if (self) {
+        self.stats = stats;
+        self.type = Activatable;
+    }
+    return self;
+}
++ (id)equipmentWithStats:(Stats *)stats
+{
+    return [[self alloc] initWithStats:stats];
+}
+-(void)use
+{
+    
+}
+@end

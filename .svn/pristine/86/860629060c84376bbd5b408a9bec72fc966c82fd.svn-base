@@ -1,0 +1,222 @@
+//
+//  Simulator.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Simulator.h"
+#import "WaitingForOrder.h"
+
+
+
+@implementation Simulator
+
+@synthesize currentLayerToAddThingsTo = currentLayerToAddThingsTo_;
+@synthesize charactersDoneMoving = charactersDoneMoving_;
+@synthesize simulatorState = simulatorState_;
+
++(Simulator *)sharedSimulator
+{
+    static Simulator *sharedSimulator;
+    
+    if(!sharedSimulator)
+    {
+        sharedSimulator = [[Simulator alloc] init];
+    }
+    return sharedSimulator;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        nextActionerID = 0;
+        gameObjects = [[NSMutableDictionary alloc] init];
+        characterObjects = [[NSMutableDictionary alloc] init];
+        battles = [[NSMutableArray alloc] init];
+        playerUnits = [[NSMutableArray alloc] init];
+        
+        maxTimeToSimulate = 5.0f;
+        simulationTimeDivisions = 5;
+        self.simulatorState = PreSim;
+        //temp code
+        
+        
+        //end temp code
+    }
+    return self;
+}
+
+-(int)initializePlayer
+{
+    [playerUnits addObject:[[NSMutableDictionary alloc] init]];
+    return [playerUnits count] - 1;
+}
+
+-(GameObject *)getGameObject:(NSNumber *)inActionerID
+{
+    return [gameObjects objectForKey:inActionerID];
+}
+-(CharacterObject *)getCharacterObject:(NSNumber *)inActionerID
+{
+    return [characterObjects objectForKey:inActionerID];
+}
+-(NSArray *)getUnitsForPlayer:(int)inPlayerID
+{
+    NSMutableDictionary *playersControlledUnits = [playerUnits objectAtIndex:inPlayerID];
+    return [playersControlledUnits allValues];
+}
+
+-(int)addGameObject:(GameObject *)inGameObject
+{
+    [gameObjects setObject:inGameObject forKey:[NSNumber numberWithInt:nextActionerID]];
+    inGameObject.actionerID = nextActionerID;
+    [[self currentLayerToAddThingsTo] addChild:inGameObject];
+    return nextActionerID++;
+}
+
+-(int)addCharacterObject:(CharacterObject *)inCharacterObject forPlayer:(int)inPlayerID;
+{
+    [characterObjects setObject:inCharacterObject forKey:[NSNumber numberWithInt:nextActionerID]];
+    NSMutableDictionary *playersUnits = [playerUnits objectAtIndex:inPlayerID];
+    [playersUnits setObject:inCharacterObject forKey:[NSNumber numberWithInt:nextActionerID]];
+    [[self currentLayerToAddThingsTo] addChild:inCharacterObject];
+    inCharacterObject.actionerID = nextActionerID;
+    return nextActionerID++;
+}
+
+-(void)addBattle:(int)inActionerID1 with:(int)inActionerID2
+{
+    for(Battle *bo in battles)
+    {
+        if([bo containsCombatant:inActionerID1])
+        {
+            NSLog(@"Found existing battle");
+            [bo addCombatant:inActionerID2];
+            return;
+        }
+        else if([bo containsCombatant:inActionerID2])
+        {
+            NSLog(@"Found existing battle");
+            [bo addCombatant:inActionerID1];
+            return;
+        }
+    }
+    NSLog(@"Adding new battle");
+    Battle *newBattleObject = [[Battle alloc] initWithCombatants:inActionerID1 and:inActionerID2];
+    [battles addObject:newBattleObject];
+}
+
+-(CharacterObject *)findCharacterByTouch:(CGPoint)worldSpaceTouch
+{
+    for( NSNumber *n in characterObjects )
+    {
+        CharacterObject *tempCharacter = [characterObjects objectForKey:n];
+        if(ccpLengthSQ(ccpSub(worldSpaceTouch, [tempCharacter position])) < powf([tempCharacter innerHitCircleRadius], 2.0))
+        {
+            tempCharacter.isSelected = YES;
+            return tempCharacter;
+        }
+    }
+    return NULL;
+}
+
+-(void)update:(ccTime)delta
+{
+    switch(self.simulatorState)
+    {
+        case Tactical:
+            break;
+        case PreSim:
+            break;
+        case Combat:
+            for( NSNumber *n in characterObjects )
+            {
+                CharacterObject *tempCharacter = [characterObjects objectForKey:n];
+                [tempCharacter update:delta];
+            }
+            if(self.charactersDoneMoving == [characterObjects count])
+            {
+                //tell spritelayer that i'm done
+                self.simulatorState = Tactical;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+-(void)preSimulate
+{
+    //do cleanup for last turn
+    [battles removeAllObjects];
+    
+    float currentSimulationTime = 1.0/simulationTimeDivisions;
+    while(currentSimulationTime < maxTimeToSimulate)
+    {
+        for( NSNumber *n1 in characterObjects )
+        {
+            CharacterObject *tempCharacter = [characterObjects objectForKey:n1];
+            [tempCharacter setPositionToTime:currentSimulationTime];
+        }
+        currentSimulationTime += 1.0/simulationTimeDivisions;
+        
+        for( NSNumber *n in characterObjects )
+        {
+            CharacterObject *tempCharacter = [characterObjects objectForKey:n];
+            for(int i = 0; i < [playerUnits count]; i++)
+            {
+                if(i == [tempCharacter playerID])
+                {
+                    i++;
+                }
+                else
+                {
+                    NSMutableDictionary *otherPlayerUnits = [playerUnits objectAtIndex:i];
+                    for( NSNumber *n1 in otherPlayerUnits )
+                    {
+                        CharacterObject *tempCharacter1 = [characterObjects objectForKey:n1];
+                        if( tempCharacter != tempCharacter1)
+                        {
+                            //if character1 has collision with character2, then add battle
+                            if([tempCharacter hasPreCollisionWith:tempCharacter1])
+                            {
+                                [self addBattle:n.intValue with:n1.intValue];
+                            }
+                        }
+                    }
+                }
+            }
+            
+            
+        }
+    }
+}
+
+-(void)moveAllCharacters
+{
+    self.simulatorState = Combat;
+    self.charactersDoneMoving = 0;
+    for( NSNumber *n in characterObjects )
+    {
+        CharacterObject *tempCharacter = [characterObjects objectForKey:n];
+        [tempCharacter startMovement];
+    }
+}
+
+- (void)dealloc
+{
+    
+    for( NSNumber *key in gameObjects)
+    {
+        [[gameObjects objectForKey:key] dealloc];
+    }
+    [gameObjects dealloc];
+    
+    [battles dealloc];
+    
+    [super dealloc];
+}
+@end

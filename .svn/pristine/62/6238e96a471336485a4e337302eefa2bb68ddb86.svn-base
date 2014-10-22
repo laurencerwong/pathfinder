@@ -1,0 +1,68 @@
+//
+//  SplinePathRenderTexture.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/20/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "SplinePathRenderTexture.h"
+#import "CCFileUtils.h"
+#import "CCGLProgram.h"
+#import "ccShaders.h"
+
+@implementation SplinePathRenderTexture
+@synthesize color = toColor_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        const GLchar * fragmentSource = (GLchar*) [[NSString stringWithContentsOfFile:[[CCFileUtils sharedFileUtils] fullPathForFilename:@"ChangeColor.fsh"] encoding:NSUTF8StringEncoding error:nil] UTF8String];
+        
+        if(fragmentSource == NULL)
+        {
+            assert(false);
+        }
+        self.shaderProgram  = [[CCGLProgram alloc] initWithVertexShaderByteArray:ccPositionTextureA8Color_vert fragmentShaderByteArray:fragmentSource];
+        [self.shaderProgram addAttribute:kCCAttributeNamePosition index:kCCVertexAttrib_Position];
+        [self.shaderProgram addAttribute:kCCAttributeNameTexCoord index:kCCVertexAttrib_TexCoords];
+        [self.shaderProgram link];
+        [self.shaderProgram updateUniforms];
+        [self.shaderProgram use];
+        
+        fromColor_ = ccc4f(1, 1, 1, 1);
+        toColor_ = ccc4f(1, 1, 1, 1);
+        toColorLocation = glGetUniformLocation(self.shaderProgram->_program, "v_toColor");
+        glUniform4f(toColorLocation, toColor_.r, toColor_.g, toColor_.b, toColor_.a);
+        fromColorLocation = glGetUniformLocation(self.shaderProgram->_program, "v_fromColor");
+        glUniform4f(fromColorLocation, fromColor_.r, fromColor_.g, fromColor_.b, fromColor_.a);
+        timeLocation = glGetUniformLocation(self.shaderProgram->_program, "f_time");
+        glUniform1f(timeLocation, 1.0);
+    }
+    return self;
+}
+
+-(void)update:(ccTime)delta
+{
+    if(time + delta <= 1)
+    {
+        time += delta;
+    }
+    [self.shaderProgram use];
+    glUniform1f(timeLocation, time);
+    
+}
+
+-(void)setColor:(ccColor4F)color
+{
+    fromColor_ = toColor_;
+    toColor_ = color;
+    time = 0.0;
+    [self.shaderProgram use];
+    glUniform4f(fromColorLocation, fromColor_.r, fromColor_.g, fromColor_.b, fromColor_.a);
+    glUniform4f(toColorLocation, color.r, color.g, color.b, color.a);
+    glUniform1f(timeLocation, time);
+}
+
+@end

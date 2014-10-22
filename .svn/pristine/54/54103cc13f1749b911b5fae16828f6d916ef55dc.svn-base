@@ -1,0 +1,52 @@
+//
+//  Simulator.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "CCLayer.h"
+#import "ccTypes.h"
+#import "Battle.h"
+#import "CharacterObject.h"
+
+typedef enum SimulatorStates : NSInteger{
+    Tactical,
+    PreSim,
+    Combat
+    
+} SimulatorStates;
+
+@interface Simulator : NSObject
+{
+    NSMutableDictionary *gameObjects;
+    NSMutableDictionary *characterObjects;
+    NSMutableArray *playerUnits;
+    int nextActionerID;
+    int nextPlayerID;
+    NSMutableArray *battles;
+    CCLayer *currentLayerToAddThingsTo_;
+    float maxTimeToSimulate;
+    int simulationTimeDivisions;
+    int charactersDoneMoving_;
+    SimulatorStates simulatorState_;
+}
+
+@property (nonatomic,readwrite,retain) CCLayer *currentLayerToAddThingsTo;
+@property (atomic)int charactersDoneMoving;
+@property SimulatorStates simulatorState;
+
++(Simulator *)sharedSimulator;
+-(GameObject *)getGameObject:(NSNumber *)inActionerID;
+-(CharacterObject *)getCharacterObject:(NSNumber *)inActionerID;
+-(int)addGameObject:(GameObject *)inGameObject;
+-(int)addCharacterObject:(CharacterObject *)inCharacterObject forPlayer:(int)inPlayerID;
+-(void)addBattle:(int)inActionerID1 with:(int)inActionerID2;
+-(CharacterObject *)findCharacterByTouch:(CGPoint)worldSpaceTouch;
+-(NSArray *)getUnitsForPlayer:(int)inPlayerID;
+-(void)preSimulate;
+-(void)moveAllCharacters;
+-(void)update:(ccTime)delta;
+-(int)initializePlayer;
+@end

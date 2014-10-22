@@ -1,0 +1,34 @@
+//
+//  Selected.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/9/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Selected.h"
+#import "WaitingForOrder.h"
+
+@implementation Selected
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+    myCharacterObject = inCharacterObject;
+
+}
+
+-(void)update:(ccTime)delta
+{
+    if(![myCharacterObject isSelected])
+    {
+        [myCharacterObject setState:[[WaitingForOrder alloc] init] ];
+    }
+}
+
+-(void)onExit
+{
+    
+}
+
+
+@end

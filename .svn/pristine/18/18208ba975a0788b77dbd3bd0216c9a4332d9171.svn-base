@@ -1,0 +1,30 @@
+//
+//  ButtonWithText.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/11/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "ButtonWithContent.h"
+
+@implementation ButtonWithContent
+@synthesize text = text_;
+
+
++(id)ButtonWithText:(NSString *)text NormalImage:(NSString *)normalImage SelectedImage:(NSString *)selectedImage Target:(id)target Selector:(SEL)selector
+{
+    return [[self alloc] initWithText:text NormalImage:normalImage SelectedImage:selectedImage Target:target Selector:selector];
+}
+
+- (id)initWithText:(NSString *)text NormalImage:(NSString *)normalImage SelectedImage:(NSString *)selectedImage Target:(id)target Selector:(SEL)selector
+{
+    self = [super initWithNormalImage:normalImage selectedImage:selectedImage disabledImage:normalImage target:target selector:selector];
+    if (self) {
+        self.text = [CCLabelTTF labelWithString:text fontName:@"Marker Felt" fontSize:15];
+        self.text.position = CGPointMake(self.contentSize.width/2, self.contentSize.height/2);
+        [self addChild: self.text];
+    }
+    return self;
+}
+@end

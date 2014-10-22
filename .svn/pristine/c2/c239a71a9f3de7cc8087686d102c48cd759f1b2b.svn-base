@@ -1,0 +1,44 @@
+//
+//  SplinePolygon.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/22/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "CCNode.h"
+
+typedef struct
+{
+    float x;
+    float y;
+} SplineVertex;
+
+typedef struct
+{
+    float x;
+    float y;
+    float z;
+} Vertex3D;
+
+@interface SplinePolygon : CCNode
+{
+    CGPoint lastPoint;
+    SplineVertex *points;
+    ccColor4B *colorPoints;
+    CGPoint currentNormal;
+    int pointIndex;
+    int numPoints;
+    int blockCount;
+    int blockSize;
+    
+    float width_;
+    //CCArray *pointColors;
+    //CCTexture2D *texture;
+}
+@property float width;
+
+-(void) addSplinePoint:(CGPoint)point;
+-(void) clearPoints;
+
+@end

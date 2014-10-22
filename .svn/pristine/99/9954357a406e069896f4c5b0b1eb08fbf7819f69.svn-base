@@ -1,0 +1,78 @@
+//
+//  BattleObject.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Battle.h"
+#import "CGPointExtension.h"
+
+@implementation Battle
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        
+    }
+    return self;
+}
+
+-(id)initWithCombatants:(int)inCombatant1 and:(int)inCombatant2
+{
+    self = [super init];
+    if (self) {
+        combatants = [[NSMutableArray alloc] init];
+        [combatants addObject:[NSNumber numberWithInt:inCombatant1]];
+        [combatants addObject:[NSNumber numberWithInt:inCombatant2]];
+        GameObject *combatantObject1 = [[Simulator sharedSimulator] getGameObject:inCombatant1];
+        GameObject *combatantObject2 = [[Simulator sharedSimulator] getGameObject:inCombatant2];
+        battleLocation = ccpMidpoint([combatantObject1 position], [combatantObject2 position]);
+    }
+    return self;
+}
+
+-(void)addCombatant:(int)inCombatant
+{
+    if(![self containsCombatant:inCombatant])
+    {
+        NSNumber *newCombatant = [NSNumber numberWithInt:inCombatant];
+        [combatants addObject:newCombatant];
+        GameObject *combatantObject = [[Simulator sharedSimulator] getGameObject:inCombatant];
+        if(!combatantObject)
+        {
+            assert(false && @"Combatant does not exist");
+        }
+        battleLocation = [combatantObject position];
+    }
+    else
+    {
+        NSNumber *newCombatant = [NSNumber numberWithInt:inCombatant];
+        [combatants addObject:newCombatant];
+        GameObject *combatantObject = [[Simulator sharedSimulator] getGameObject:inCombatant];
+        //recalculate battle point
+        battleLocation = ccpLerp(battleLocation, [combatantObject position], 1.0/([combatants count] + 1));
+    }
+}
+
+-(BOOL)containsCombatant:(int)inCombatant
+{
+    if([combatants count])
+    {
+        for(NSNumber *n in combatants)
+        {
+            if(n.intValue == inCombatant)
+            {
+                return YES;
+            }
+        }
+        return NO;
+    }
+    else
+    {
+        return NO;
+    }
+}
+@end

@@ -1,0 +1,42 @@
+//
+//  Combat.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/9/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Combat.h"
+#import "CharacterObject.h"
+#import "Simulator.h"
+#import "WaitingForOrder.h"
+
+@implementation Combat
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+
+    myCharacterObject = inCharacterObject;
+    characterInCombatWith = [[Simulator sharedSimulator] getNearestCollidingCharacterTo:myCharacterObject];
+    //do battle calculations
+    float damage = 200;
+    if(characterInCombatWith && [myCharacterObject makeAccuracyCheckWithPlayer:characterInCombatWith])
+    {
+        characterInCombatWith.currentHealth -= damage;
+    }
+    QuietLog(@"Character %d entered combat", [myCharacterObject actionerID]);
+
+}
+
+-(void)update:(ccTime)delta
+{
+    [myCharacterObject setState:[[WaitingForOrder alloc] init]];
+}
+
+-(void)onExit
+{
+    
+}
+
+
+@end

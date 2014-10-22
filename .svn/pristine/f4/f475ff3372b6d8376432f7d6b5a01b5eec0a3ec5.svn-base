@@ -1,0 +1,176 @@
+//
+//  SpeechBubble.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/20/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "SpeechBubble.h"
+#import "CCAction.h"
+#import "CCActionInstant.h"
+#import "CCActionInterval.h"
+#import "CGPointExtension.h"
+
+@implementation SpeechBubble
+@synthesize killMe = killMe_;
+
++(id) speechBubbleWithText:(NSString *)text fromCharacter:(CharacterObject *)character andTimeout:(float)time
+{
+    return [[self alloc] initWithText:text withCharacter:character andTime:time];
+}
++(id) speechBubbleWithText:(NSString *)text andPosition:(CGPoint)position andTimeout:(float)time
+{
+     return [[self alloc] initWithText:text andPosition:position andTime:time];
+}
+
++(id) speechBubbleWithText:(NSString *)text andPosition:(CGPoint)position
+{
+    return [[self alloc] initWithText:text andPosition:position andTime:0.0];
+}
+
+- (id)initWithText:(NSString *)text andPosition:(CGPoint)position andTime:(float)time
+{
+    self = [super init];
+    if (self) {
+        myCharacterObject = nil;
+        self.position = position;
+        sidePadding = 5.0f;
+        topPadding = 5.0f;
+        fontSize = 15;
+        fontName = @"Marker Felt";
+        maxTime_ = time;
+        speechBubbleLeftSide = [CCSprite spriteWithFile:@"SpeechBubbleSide.png"];
+        [self addChild:speechBubbleLeftSide];
+        speechBubbleRightSide = [CCSprite spriteWithFile:@"SpeechBubbleSide.png"];
+        [self addChild:speechBubbleRightSide];
+        speechBubbleRightSide.flipX = YES;
+        speechBubbleMiddle = [CCSprite spriteWithFile:@"SpeechBubbleMiddle.png"];
+        [self addChild:speechBubbleMiddle];
+        speechBubbleBottom = [CCSprite spriteWithFile:@"SpeechBubbleBottom.png"];
+        [self addChild:speechBubbleBottom];
+        CGSize s = [self getWidthOfLabel:text];
+        text_ = [CCLabelTTF labelWithString:text fontName:fontName fontSize:fontSize
+                                 dimensions:s hAlignment:kCCTextAlignmentLeft lineBreakMode:kCCLineBreakModeWordWrap];
+        text_.color = ccc3(0, 0, 0);
+        //text_.position = ccpAdd(text_.position, ccp(5, 0));
+        [self addChild:text_];
+        [self setBubbleSize];
+    }
+    return self;
+}
+
+- (id)initWithText:(NSString *)text withCharacter:(CharacterObject *)character andTime:(float)time
+{
+    self = [super init];
+    if (self) {
+        myCharacterObject = character;
+        self.position = character.position;
+        sidePadding = 5.0f;
+        topPadding = 5.0f;
+        fontSize = 15;
+        fontName = @"Marker Felt";
+        maxTime_ = time;
+        speechBubbleLeftSide = [CCSprite spriteWithFile:@"SpeechBubbleSide.png"];
+        [self addChild:speechBubbleLeftSide];
+        speechBubbleRightSide = [CCSprite spriteWithFile:@"SpeechBubbleSide.png"];
+        [self addChild:speechBubbleRightSide];
+        speechBubbleRightSide.flipX = YES;
+        speechBubbleMiddle = [CCSprite spriteWithFile:@"SpeechBubbleMiddle.png"];
+        [self addChild:speechBubbleMiddle];
+        speechBubbleBottom = [CCSprite spriteWithFile:@"SpeechBubbleBottom.png"];
+        [self addChild:speechBubbleBottom];
+        CGSize s = [self getWidthOfLabel:text];
+        text_ = [CCLabelTTF labelWithString:text fontName:fontName fontSize:fontSize
+                                 dimensions:s hAlignment:kCCTextAlignmentLeft lineBreakMode:kCCLineBreakModeWordWrap];
+        text_.color = ccc3(0, 0, 0);
+        //text_.position = ccpAdd(text_.position, ccp(5, 0));
+        [self addChild:text_];
+        [self setBubbleSize];
+    }
+    return self;
+}
+
+-(CGSize)getWidthOfLabel:(NSString *)text
+{
+    BOOL isMultiLine = NO;
+    int maxLineSize = 100;
+    CGSize labelSize;
+    NSArray *words = [text componentsSeparatedByString:@" "];
+    int lineSize = 0;
+    labelSize.height = 16.2; //woo magic numbers
+    for(NSString *word in words)
+    {
+        CCLabelTTF *wordLabel = [CCLabelTTF labelWithString:word fontName:fontName fontSize:fontSize];
+        lineSize += wordLabel.contentSize.width + 10;
+        if(lineSize > maxLineSize)
+        {
+            lineSize = wordLabel.contentSize.width;//this will be the first word on the line
+            labelSize.height += wordLabel.contentSize.height + 2;
+            isMultiLine = YES;
+        }
+    }
+    labelSize.width = maxLineSize;
+    if(!isMultiLine)
+    {
+        labelSize.width = lineSize;
+    }
+    
+    return labelSize;
+}
+
+-(CGRect)getBoundingBox
+{
+    return speechBubbleMiddle.boundingBox;
+}
+
+-(void)setBubbleSize
+{
+    CGSize textSize = text_.contentSize;
+    float widthScaleFactor = (textSize.width + sidePadding) / speechBubbleMiddle.contentSize.width;
+    float heightScaleFactor = (textSize.height + topPadding) / speechBubbleMiddle.contentSize.height;
+    speechBubbleMiddle.scaleX = widthScaleFactor;
+    speechBubbleMiddle.scaleY = heightScaleFactor;
+    speechBubbleRightSide.scaleY = heightScaleFactor;
+    speechBubbleRightSide.position = CGPointMake((textSize.width + sidePadding)/2 + self.contentSize.width/2, 0);
+    speechBubbleLeftSide.position = CGPointMake(speechBubbleRightSide.position.x * -1, 0);
+    speechBubbleLeftSide.scaleY = heightScaleFactor;
+    speechBubbleBottom.position = CGPointMake(0, -textSize.height/2 - speechBubbleBottom.contentSize.height/2);
+    self.position = CGPointMake(self.position.x, self.position.y + textSize.height/2 + 2.0 * topPadding + speechBubbleBottom.contentSize.height + 5.0f);
+}
+
+-(void)setOpacity:(GLubyte)opacity //need to override the setOpacity method
+{
+    for(CCSprite *cs in self.children)
+    {
+        cs.opacity = opacity;
+    }
+}
+
+-(CCNode *)getAsNode
+{
+    return self;
+}
+
+-(void)update:(ccTime)delta
+{
+    if(maxTime_ && !fadingOut)
+    {
+        if(time_ > maxTime_ && !self.killMe)
+        {
+            fadingOut = YES;
+            CCSequence *deathSequence = [CCSequence actions:[CCFadeOut actionWithDuration:0.5],
+                                         [CCCallBlock actionWithBlock:^(void)
+                                          {
+                                              self.killMe = YES;
+                                          }], nil];
+            [self runAction:deathSequence];
+        }
+        time_ += delta;
+        if(myCharacterObject != nil)
+        {
+            self.position = myCharacterObject.position;
+        }
+    }
+}
+@end

@@ -1,0 +1,79 @@
+//
+//  SpriteLayer.h
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "cocos2d.h"
+#import "CameraDummyObject.h"
+#import "CharacterObject.h"
+#import "TileMapLayer.h"
+#import "Buttons.h"
+#import "BatchDamageSpriteHandler.h"
+#import "GhostCharacter.h"
+#import "SplinePathRenderTexture.h"
+#import "CharacterSelectionListener.h"
+
+typedef enum SplineDrawingState {
+    Drawing,
+    JustCollided,
+    AlreadyCollided
+} SplineDrawingState;
+
+@interface SpriteLayer : CCLayer {
+    BOOL debugDraw;
+    
+    TileMapLayer *tileMapLayer_;
+    CameraDummyObject *camera_;
+    NSMutableArray *players;
+    int currentPlayerID_;
+    int numFinishedPlayers;
+    
+    CGPoint touchBeginLocation;
+    CGPoint lastTouchMovedLocation;
+    CGPoint dragOffset;
+    BOOL movingMap;
+    int buttonsPressed_;
+    Button lastButtonPressed;
+    
+    CCPointArray *touchPath;
+    CCPointArray *splinePath;
+    int touchesMovedCounter;
+    int MaxTouchesMovedCounter;
+    CharacterObject *currentlySelectedCharacter_;
+    GhostCharacter *ghostCharacter;
+    NSString *endTurnButtonText_;
+    CCSprite *selectedSprite;
+    SplineDrawingState currentSplineDrawingState;
+    
+    NSMutableDictionary *pathTextures;
+    SplinePathRenderTexture *pathTexture;
+    int lastPathTexturePointIndex;
+    CGPoint pathTextureExtremes[2];
+    float distanceFromLastArrowOnPath;
+    float maxDistanceBetweenPathArrows;
+    CCSprite *arrowSprite;
+    
+    NSMutableArray *characterSelectionListeners;
+    
+    //BatchDamageSpriteHandler *damageSpriteHandler;
+}
+
+-(void) initializeTileMap;
+-(void) initializeCamera;
+-(void) endTurn;
+-(void) focusOnFirstUnitForCurrentPlayer;
+-(ccColor4F) currentPlayerColor;
+
+-(void) registerCharacterSelectionListener:(id <CharacterSelectionListener>*)csl;
+
+@property int buttonsPressed;
+@property (nonatomic,readwrite,retain)CameraDummyObject *camera;
+@property (strong)TileMapLayer *tileMapLayer;
+@property (nonatomic, retain)CharacterObject *currentlySelectedCharacter;
+@property int currentPlayerID;
+
+@end

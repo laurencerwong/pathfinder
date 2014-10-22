@@ -1,0 +1,48 @@
+//
+//  Player.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/11/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Player.h"
+#import "Simulator.h"
+#import "Warrior.h"
+#import "LongSword.h"
+#import "Castle.h"
+
+@implementation Player
+@synthesize playerID = playerID_;
+@synthesize hasFinishedTurn = hasFinishedTurn_;
+@synthesize controllableCharacters = controllableCharacters_;
+@synthesize myColor = myColor_;
+- (id)initWithColor:(ccColor4F)inColor;
+{
+    self = [super init];
+    if (self) {
+        self.playerID = [[Simulator sharedSimulator] initializePlayer];
+        self.controllableCharacters = [[NSMutableArray alloc] init];
+        self.myColor = inColor;
+        
+    }
+    return self;
+}
+-(void)initializeDefaultCharactersWithPosition:(CGPoint)offset
+{
+    [self.controllableCharacters addObject:[NSNumber numberWithInt:[Warrior WarriorWithRandStatsAndEquipment1:[[LongSword alloc] init] AndEquipment2:[[LongSword alloc] init] AndPlayerID:self.playerID AndColor:self.myColor]]];
+    CharacterObject *tempWarrior = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:0]];
+    tempWarrior.position = ccpAdd(ccp(75, -20), offset);
+    [self.controllableCharacters addObject:[NSNumber numberWithInt:[Warrior WarriorWithRandStatsAndEquipment1:[[LongSword alloc] init] AndEquipment2:[[LongSword alloc] init] AndPlayerID:self.playerID AndColor:self.myColor]]];
+    tempWarrior = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:1]];
+    tempWarrior.position = ccpAdd(ccp(30,0), offset);
+    
+    [self.controllableCharacters addObject:[NSNumber numberWithInt:[Warrior WarriorWithRandStatsAndEquipment1:[[LongSword alloc] init] AndEquipment2:[[LongSword alloc] init] AndPlayerID:self.playerID AndColor:self.myColor]]];
+    tempWarrior = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:2]];
+    tempWarrior.position = ccpAdd(ccp(40, 20), offset);
+}
+
+
+@end
+
+

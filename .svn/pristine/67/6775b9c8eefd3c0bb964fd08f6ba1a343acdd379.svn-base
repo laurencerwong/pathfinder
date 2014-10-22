@@ -1,0 +1,34 @@
+//
+//  UseEquipment.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/9/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "UseEquipment.h"
+#import "OnGuard.h"
+#import "CharacterObject.h"
+
+@implementation UseEquipment
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+
+    myCharacterObject = inCharacterObject;
+    QuietLog(@"Character %d entered useEquipment", [myCharacterObject actionerID]);
+    [[myCharacterObject currentEquipment] use];
+}
+
+-(void)update:(ccTime)delta
+{
+    [myCharacterObject setState:[[OnGuard alloc] init] ];
+}
+
+-(void)onExit
+{
+    
+}
+
+
+@end

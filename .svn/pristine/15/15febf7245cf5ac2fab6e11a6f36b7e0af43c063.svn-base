@@ -1,0 +1,48 @@
+//
+//  CharacterObject.h
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/4/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "GameObject.h"
+#import "cocos2d.h"
+#import "Simulator.h"
+
+@interface CharacterObject : GameObject
+{
+    //Equipment e1, e2;
+    //Stats s;
+    //Might need distance array for pre-sim calculation
+    CCPointArray *touchPath_;
+    NSMutableArray *distancesBetweenPoints;
+    CCSequence *movementAlongSpline;
+    float desiredSpeed;
+    float innerHitCircleRadius;
+    float range;
+    
+    //Pre Simulation Variables
+    //sCGPoint lastKnownControlPoint;
+    CGPoint currentPreSimPosition;
+    int lastKnownControlPointIndex;
+    float lastTime;
+    float lastRemainingDistance;
+}
+
+@property (nonatomic,readwrite,retain) CCPointArray *touchPath;
+
+//temp code begin
+@property CGPoint preSimPoint;
+//temp code end
+
++(int)characterObjectWithFile:(NSString *)filename;
+-(int)initializeWithFile:(NSString *)filename;
+-(void)createSplineFromPoints:(CCPointArray *)inPoints;
+-(void)generateSpline;
+-(void)setPositionToTime:(float)t;
+-(void)resetPath;
+-(void)startMovement;
+
+
+@end

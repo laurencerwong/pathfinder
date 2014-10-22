@@ -1,0 +1,41 @@
+//
+//  SpriteLayer.h
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+#import "cocos2d.h"
+#import "CameraDummyObject.h"
+#import "CharacterObject.h"
+#import "TileMapLayer.h"
+#import "ButtonsPressed.h"
+
+@interface SpriteLayer : CCLayer {
+    BOOL debugDraw;
+    
+    TileMapLayer *tileMapLayer_;
+    CameraDummyObject *camera_;
+    CGPoint touchBeginLocation;
+    CGPoint dragOffset;
+    BOOL movingMap;
+    NSMutableArray *characters;
+    NSMutableArray *unmovedCharacters;
+    int buttonsPressed_;
+    
+    CCPointArray *touchPath;
+    CCPointArray *splinePath;
+    int touchesMovedCounter;
+    int MaxTouchesMovedCounter;
+    CharacterObject *currentlySelectedCharacter;
+}
+
+@property int buttonsPressed;
+@property (nonatomic,readwrite,retain)CameraDummyObject *camera;
+@property (strong)TileMapLayer *tileMapLayer;
+@property (nonatomic, retain)CharacterObject *selectedPlayer;
+
+
+@end

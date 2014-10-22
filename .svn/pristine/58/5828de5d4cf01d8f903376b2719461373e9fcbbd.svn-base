@@ -1,0 +1,72 @@
+//
+//  SpriteLayer.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/5/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+#import "SpriteLayer.h"
+
+
+@implementation SpriteLayer
+
+@synthesize camera = camera_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        [self initializeCamera];
+        self.touchEnabled = YES;
+        movingMap = NO;
+    }
+    return self;
+}
+
+-(void) update:(ccTime)delta
+{
+//    self.camera.position = ccpAdd(self.camera.position, ccp(1, 1));
+    
+}
+
+-(void) draw
+{
+    [super draw];
+
+}
+
+-(void) initializeCamera
+{
+    CGSize s = [[CCDirector sharedDirector] winSize];
+    self.camera = [CameraDummyObject node];
+    self.camera.position = ccp(0, s.height/2);
+    [self addChild: self.camera];
+}
+
+-(void) registerWithTouchDispatcher {
+    [[CCDirector sharedDirector].touchDispatcher addTargetedDelegate:self priority:INT_MIN+1 swallowsTouches:YES];
+}
+
+-(BOOL) ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    initialTouchLocation = [self convertTouchToNodeSpace: touch];
+    movingMap = YES;
+        
+    return YES;
+}
+
+-(void) ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    CGPoint touchLocation = [self convertTouchToNodeSpace: touch];
+    
+    CGPoint drag = ccpSub(initialTouchLocation, touchLocation);
+    
+    self.camera.position = ccpAdd(self.camera.position, drag);
+}
+
+-(void) ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    movingMap = NO;
+}
+@end

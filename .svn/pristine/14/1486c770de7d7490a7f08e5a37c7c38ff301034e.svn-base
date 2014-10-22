@@ -1,0 +1,26 @@
+//
+//  PriorityQueue.h
+//  cocos2d-normal
+//
+//  From Mike Ash
+//
+
+#import <Foundation/Foundation.h>
+
+@interface PriorityQueue : NSObject {
+	struct PQNode*	mObjs;
+	unsigned			mCount;
+	unsigned			mCapacity;
+	
+	BOOL				mHeapified;
+}
+
+- init;
+
+- (unsigned)count;
+- (void)addObject: (id)obj value: (unsigned)val;
+- (id)pop;
+- (NSSet*)allValues;
+
+@end
+

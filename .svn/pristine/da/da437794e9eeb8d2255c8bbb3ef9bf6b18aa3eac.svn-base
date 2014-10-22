@@ -1,0 +1,42 @@
+//
+//  Player.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/11/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "Player.h"
+#import "Simulator.h"
+
+@implementation Player
+@synthesize playerID = playerID_;
+@synthesize hasFinishedTurn = hasFinishedTurn_;
+@synthesize controllableCharacters = controllableCharacters_;
+- (id)initWithColor:(float *)inColor;
+{
+    self = [super init];
+    if (self) {
+        self.playerID = [[Simulator sharedSimulator] initializePlayer];
+        self.controllableCharacters = [[NSMutableArray alloc] init];
+        myColor[0] = inColor[0];
+        myColor[1] = inColor[1];
+        myColor[2] = inColor[2];
+        myColor[3] = inColor[3];
+        
+    }
+    return self;
+}
+-(void)initializeDefaultCharactersWithPosition:(CGPoint)offset
+{
+    [self.controllableCharacters addObject:[NSNumber numberWithInt:[CharacterObject characterObjectWithFile:@"Icon-Small.png" AndPlayerID:self.playerID AndColor:myColor]] ];
+    CharacterObject *tempCharacter = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:0]];
+    tempCharacter.position = ccpAdd(ccp(0,0), offset);
+    
+    [self.controllableCharacters addObject:[NSNumber numberWithInt:[CharacterObject characterObjectWithFile:@"Icon-Small.png" AndPlayerID:self.playerID AndColor:myColor]] ];
+    tempCharacter = [[Simulator sharedSimulator] getCharacterObject:(NSNumber *)[self.controllableCharacters objectAtIndex:1]];
+    tempCharacter.position = ccpAdd(ccp(40, 20), offset);
+}
+@end
+
+

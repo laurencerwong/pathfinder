@@ -1,0 +1,149 @@
+//
+//  SplinePolygon.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/22/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "SplinePolygon.h"
+#import "ccShaders.h"
+#import "CCShaderCache.h"
+#import "CCGLProgram.h"
+#import "CGPointExtension.h"
+#import "QuietLog.h"
+
+@implementation SplinePolygon
+
+@synthesize width = width_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.shaderProgram = [[CCShaderCache sharedShaderCache] programForKey:kCCShader_PositionColor];
+        blockSize = 50;
+        currentNormal = ccp(0, 1);
+        self.width = 5;
+    }
+    return self;
+}
+
+-(Vertex3D)cross:(Vertex3D *)vector1 withVector:(Vertex3D *)vector2
+{
+    Vertex3D crossProduct;
+    crossProduct.x = (vector1->y * vector2->z) - (vector2->y * vector1->z);
+    crossProduct.y = (vector2->x * vector1->z) - (vector1->x * vector2->z);
+    crossProduct.z = (vector1->x * vector2->y) - (vector2->x * vector1->y);
+    return crossProduct;
+}
+
+-(void)addSplinePoint:(CGPoint)point
+{
+    if(numPoints > 0)
+    {
+        CGPoint oldPoint = ccpNormalize(
+                                        ccpSub(point,
+                                               lastPoint
+                                               )
+                                        );
+        Vertex3D vectorFromLastPointToCurrentPoint;
+        vectorFromLastPointToCurrentPoint.x = oldPoint.x;
+        vectorFromLastPointToCurrentPoint.y = oldPoint.y;
+        vectorFromLastPointToCurrentPoint.z = 0;
+        
+        Vertex3D negativeZAxis;
+        negativeZAxis.x = 0;
+        negativeZAxis.y = 0;
+        negativeZAxis.z = -1;
+        
+        vectorFromLastPointToCurrentPoint = [self cross:&vectorFromLastPointToCurrentPoint withVector:&negativeZAxis];
+        currentNormal.x = vectorFromLastPointToCurrentPoint.x;
+        currentNormal.y = vectorFromLastPointToCurrentPoint.y;
+        currentNormal = ccpNormalize(currentNormal);
+        
+    }
+    SplineVertex newPoint;
+    newPoint.x = point.x + currentNormal.x * self.width;
+    newPoint.y = point.y + currentNormal.y * self.width;
+    [self addPoint:newPoint];
+    newPoint.x = point.x - currentNormal.x * self.width;
+    newPoint.y = point.y - currentNormal.y * self.width;
+    [self addPoint:newPoint];
+    lastPoint = point;
+}
+
+-(void)addPoint:(SplineVertex)point
+{
+    int newBlockCount = numPoints / blockSize + 1;
+    //handle resizing
+    if(blockCount % blockSize == 0)
+    {
+        SplineVertex *newPoints = (SplineVertex *)realloc(points, sizeof(SplineVertex)* blockSize * newBlockCount);
+        if(!newPoints)
+        {
+            free(points);
+            points = (SplineVertex *)realloc(points, sizeof(SplineVertex)* blockSize * newBlockCount);
+        }
+        else
+        {
+            points = newPoints;
+        }
+        ccColor4B *newColorPoints = (ccColor4B *)realloc(colorPoints, sizeof(ccColor4B)* blockSize * newBlockCount);
+        if(!newColorPoints)
+        {
+            colorPoints = (ccColor4B *)realloc(colorPoints, sizeof(ccColor4B)* blockSize * newBlockCount);
+        }
+        else
+        {
+            colorPoints = newColorPoints;
+        }
+        blockCount = newBlockCount;
+    }
+    points[pointIndex] = point;
+    
+    colorPoints[pointIndex++] = ccc4(255, 255, 255, 255);
+    numPoints = pointIndex;
+    
+    
+}
+
+-(void)draw
+{
+    if(numPoints > 2)
+    {
+        ccGLEnableVertexAttribs( kCCVertexAttribFlag_Position | kCCVertexAttribFlag_Color );
+        [self.shaderProgram use];
+        [self.shaderProgram setUniformsForBuiltins];
+        
+        glEnableVertexAttribArray(kCCVertexAttribFlag_Position);
+        glVertexAttribPointer(kCCVertexAttrib_Position, 2, GL_FLOAT, GL_FALSE, 0, points);
+        
+        glEnableVertexAttribArray(kCCVertexAttribFlag_Color);
+        glVertexAttribPointer(kCCVertexAttrib_Color, 4, GL_UNSIGNED_BYTE, GL_TRUE, 0, colorPoints);
+        
+        
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, numPoints);
+    }
+}
+
+-(void) clearPoints
+{
+    currentNormal = ccp(0, 1);
+    /*
+    free(points);
+    free(colorPoints);
+     */
+    pointIndex = 0;
+    numPoints = 0;
+    blockCount = 0;
+}
+
+- (void)dealloc
+{
+    free(points);
+    free(colorPoints);
+    [super dealloc];
+}
+
+@end

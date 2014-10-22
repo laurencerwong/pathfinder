@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="35" height="30" tilewidth="64" tileheight="64">
+ <tileset firstgid="1" name="desert_2x" tilewidth="64" tileheight="64" spacing="2" margin="2">
+  <image source="desert_2x.png" width="530" height="398"/>
+ </tileset>
+ <tileset firstgid="49" name="buildings" tilewidth="64" tileheight="64">
+  <image source="buildings.png" width="256" height="256"/>
+ </tileset>
+ <tileset firstgid="65" name="big_meta_tiles" tilewidth="64" tileheight="64" spacing="2" margin="2">
+  <image source="big_meta_tiles.png" width="134" height="68"/>
+ </tileset>
+ <tileset firstgid="67" name="buildings_misc" tilewidth="64" tileheight="64">
+  <image source="buildings_misc.png" width="448" height="260"/>
+ </tileset>
+ <tileset firstgid="95" name="realwalls" tilewidth="64" tileheight="64" spacing="2" margin="2">
+  <image source="realwalls.png" width="530" height="398"/>
+ </tileset>
+ <layer name="Tile Layer 1" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJzFl2lLAzEQhqMFr4J3PVBbxaO1Hn+vFopVUGpB/M1OIANDmElmkl398NBlk908m7w72U6ccy8FTIG+glPgTNn3CrgB3oy8G+5/HY7XgPWIDaFvG9D7bwM7EbtC35kRf80AGIXfITn3Hy79aPxRw/MycfncUpch49CUy9zlcxvPS1t5WQBfCZYGl3vgocKFuydtS/VLcQQcR5woXej7gG2vwCfwXeBiWU/NvHwEn59w3LZL7j2eBZe/mBeNS0leEK5mTF1+D5BqjXZvlJ7f74HjwG1w8OcfE+NItUa7N3LMw/VYI3A+uLHoOFKtWVa4LKLr0YUbSxoHc+Jr/iVwV+EjZVbDCtAhLs+kLbd/5fJmddkEusFlELXl9i8OmoMaF279U/tXLm/oov0+Sbk0lReLyzmwytBp2EWzRofAPsOBcI02008FLl3j81oyjd9nbbl4tDnG7zOPrx+ptUeX2mykQBc/1paT83mRcW3DJUfJOlld9hz/jlB6iXkrhc6z5b+ZxtcKrQe/SLrifQ==
+  </data>
+ </layer>
+ <objectgroup name="Objects" width="35" height="30">
+  <object name="SpawnPoint1" x="189" y="1645" width="113" height="95"/>
+  <object name="SpawnPoint2" x="1963" y="27" width="238" height="135"/>
+  <object x="263" y="1719" width="1"/>
+  <object x="294" y="1727"/>
+ </objectgroup>
+ <layer name="Buildings" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJzt17sKwjAYBeCAm76CaCd18q6td8Hbpm6CqK8hTuJUfWtP6F+QYoMp5A9qD3xYEJozhCMKYTZnuBg+w2Tumh52aqb58VzhZrsExRf/e88b0FRoQRsKDF060FVwwWPq0oM+zGBFnwuYkwEMGXrIjGAM+xgTmDJ1SZPGRlQ7FW4UV1R7KXmMXVSb6VIfroSbuXwht1LuJudeyqg281v3sggO43l5yNDzGjYR20gf/8P3JvlfkYWcCH77T2++30EZ6prvlakk7BKXAxw1VDXPNxFH8N4t3ZRsF6DURHDPnjAaKPQ=
+  </data>
+ </layer>
+ <layer name="Meta" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJztlFEOwCAIQ72a97/UvpYYAwxbArqtiT+K9Qlib611cHiExP4seKy1f/TpwnoGy+gzc0SwrNbHOi+bZdX/VJYqPdVai5d6hc0lmvO5hytYxn0aXzaL5OFlQZkjegllX7nDm1i8bB6vqH+J8UL/F/QtW3ef5ypZJLZdWFh9jQWtGSvJL4sl+k2yLBZfhB8jpq+rtAuHpl3Y7jxd8nZmEw==
+  </data>
+ </layer>
+</map>

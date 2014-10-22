@@ -1,0 +1,92 @@
+//
+//  UILayer.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/8/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "UILayer.h"
+
+@implementation UILayer
+@synthesize buttonsPressed = buttonsPressed_;
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.touchEnabled = YES;
+        CGSize s = [[CCDirector sharedDirector] winSize];
+        spaceBetweenMenuItems = 2;
+        
+        menuBackground = [CCSprite spriteWithFile:@"menuBackgroundBar.png"];
+        [self addChild:menuBackground];
+        menuBackground.position = ccp(s.width/2, menuBackground.contentSize.height/2);
+        
+        menu = [[CCMenu alloc] init];
+        menu.position = ccp(0,10);
+        
+        CCMenuItemImage *combatMoveButton = [CCMenuItemImage  itemWithNormalImage:@"unpressedMenuButton.png" selectedImage:@"pressedMenuButton.png" target:self selector:@selector(buttonPressed:)];
+        combatMoveButton.tag = CombatMove;
+        [self addMenuItem:combatMoveButton];
+        
+        [self addChild:menu];
+    }
+    return self;
+}
+
+-(void)addMenuItem:(CCMenuItemImage*)inItem
+{
+    CGSize s = [[CCDirector sharedDirector] winSize];
+    [menu addChild:inItem];
+    menuItemXOffset = menuItemXOffset + [inItem contentSize].width + spaceBetweenMenuItems;
+    float inItemXPosition = s.width - menuItemXOffset;
+    inItem.position = ccp(inItemXPosition, [inItem contentSize].height/2);
+}
+
+-(void) registerWithTouchDispatcher {
+    //the lower the touch priority the faster it gets the touch
+    [[CCDirector sharedDirector].touchDispatcher addTargetedDelegate:self priority:-10 swallowsTouches:YES];
+}
+
+-(void)update:(ccTime)delta
+{
+    self.buttonsPressed = 0;
+}
+
+-(void)buttonPressed:(id)sender
+{
+    CCMenuItemImage *pressedButton = (CCMenuItemImage*)sender;
+    self.buttonsPressed |= pressedButton.tag;
+}
+
+-(BOOL)ccTouchBegan:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    BOOL shouldSwallowTouch = NO;
+    //if it hits a button, then return yes
+    NSLog(@"UILAYER CHECKING TOUCH");
+    CCArray *menuChildren = [menu children];
+    for(CCMenuItemImage *item in menuChildren)
+    {
+        if(item.isSelected)
+        {
+            shouldSwallowTouch = YES;
+            NSLog(@"UILAYER SWALLOWED TOUCH");
+        }
+    }
+    
+    return shouldSwallowTouch;
+}
+-(void)ccTouchMoved:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    
+}
+-(void)ccTouchEnded:(UITouch *)touch withEvent:(UIEvent *)event
+{
+    
+}
+- (void)dealloc
+{
+    [menu dealloc];
+    [super dealloc];
+}
+@end

@@ -1,0 +1,52 @@
+//
+//  WaitingForOrder.m
+//  cocos2d-normal
+//
+//  Created by Laurence Wong on 11/9/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "WaitingForOrder.h"
+#import "Selected.h"
+#import "CharacterObject.h"
+#import "Simulator.h"
+#import "Action.h"
+
+
+@implementation WaitingForOrder
+
+-(void)onEnter:(CharacterObject *)inCharacterObject
+{
+    myCharacterObject = inCharacterObject;
+    NSLog(@"Switching character %d to waitingForOrder", [myCharacterObject actionerID]);
+    
+}
+
+-(void)update:(ccTime)delta
+{
+    if([[Simulator sharedSimulator] simulatorState] == Combat)
+    {
+        switch([[myCharacterObject action] type])
+        {
+            case Move:
+                break;
+            case UseEquip:
+                break;
+            case ChangeEquip:
+                break;
+            default:
+                NSLog(@"No action is on character %d", [myCharacterObject actionerID]);
+        }
+    }
+    if([myCharacterObject isSelected])
+    {
+        [myCharacterObject setState:[[Selected alloc] init]];
+    }
+}
+
+-(void)onExit
+{
+    
+}
+
+@end

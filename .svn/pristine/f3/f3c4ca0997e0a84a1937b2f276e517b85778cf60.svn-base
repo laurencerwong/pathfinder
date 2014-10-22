@@ -1,0 +1,71 @@
+//
+//  GameplayScene.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 11/4/13.
+//  Copyright 2013 Instructor. All rights reserved.
+//
+
+//
+//  GameplayScene.m
+//  cocox2d-box2d
+//
+//  Created by Keith DeRuiter on 9/22/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "GameplayScene.h"
+#import "CharacterObject.h"
+
+@implementation GameplayScene
+
+@synthesize tileMapLayer = tileMapLayer_;
+@synthesize spriteLayer = spriteLayer_;
+@synthesize uiLayer = uiLayer_;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        self.tileMapLayer = [TileMapLayer node];
+        self.spriteLayer = [SpriteLayer node];
+        self.uiLayer = [UILayer node];
+        self.spriteLayer.tileMapLayer = self.tileMapLayer;
+        
+        [self addChild:self.tileMapLayer];
+        [self addChild:self.spriteLayer];
+        [self addChild:self.uiLayer z:5];
+
+        [self.tileMapLayer runAction:[CCFollow actionWithTarget:self.spriteLayer.camera]];
+        [self.spriteLayer runAction:[CCFollow actionWithTarget:self.spriteLayer.camera]];
+        
+        [self scheduleUpdate];
+    }
+    return self;
+}
+
+-(void) update:(ccTime)delta
+{
+    if([[self spriteLayer] selectedPlayer] == NULL)
+    {
+        [self.uiLayer hideBars];
+    }
+    else
+    {
+        CharacterObject *tempPlayer = [[self spriteLayer]selectedPlayer];
+      [self.uiLayer showBarsWith:[tempPlayer currentHealth] AndMaxHealth:[tempPlayer maxHealth] AndCurrentActionPoints:[tempPlayer currentActionPoints] AndMaxActionPoints:[tempPlayer maxActionPoints]];
+    }
+    [self.tileMapLayer update:delta];
+    //give the spritelayer the buttons that were pressed
+    self.spriteLayer.buttonsPressed = [self.uiLayer getButtonsPressed];
+    [self.spriteLayer update:delta];
+}
+
+
+
++(CCScene*) scene
+{
+    return [self node];
+}
+
+@end

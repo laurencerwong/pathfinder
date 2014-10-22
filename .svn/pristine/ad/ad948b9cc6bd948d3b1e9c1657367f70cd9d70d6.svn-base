@@ -1,0 +1,48 @@
+//
+//  LowHealthRetreat.m
+//  cocos2d-normal
+//
+//  Created by Keith DeRuiter on 12/3/13.
+//  Copyright (c) 2013 Instructor. All rights reserved.
+//
+
+#import "LowHealthRetreat.h"
+#import "Simulator.h"
+
+@implementation LowHealthRetreat
+
+-(id) initForCharacter:(CharacterObject *)character
+{
+    self = [super init];
+    if (self) {
+        healthGain = 800;
+    }
+    return self;
+}
+
+-(int) computeUtilityAndInitialize
+{
+    int damage = myCharacter.maxHealth - myCharacter.currentHealth;
+    int v = [self getUtilityForDamage:damage];
+    
+    CGPoint normalizedVectorToTarget = ccpNormalize(ccpSub(myCharacter.currentTarget.position, myCharacter.position));
+    
+    self.desiredAction = [Action actionWithType:MoveAction];
+    self.destination = ccpAdd(myCharacter.position, ccpMult(ccpNeg(normalizedVectorToTarget), 20));     //Go 20 units in the direction away from my target
+    
+    QuietLog(@"Utility for Low Health: %d  destination=(%.0f, %.0f)", v, self.destination.x, self.destination.y);
+    
+    return v;
+}
+
+-(int) getUtilityForDamage:(int)damage
+{
+    return healthGain * pow(damage, 2);
+}
+
+-(NSString *)description
+{
+    return @"LowHealthRetreat";
+}
+
+@end

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" width="35" height="30" tilewidth="64" tileheight="64">
+ <tileset firstgid="1" name="realwalls" tilewidth="64" tileheight="64" spacing="2" margin="2">
+  <image source="realwalls.png" width="530" height="398"/>
+ </tileset>
+ <tileset firstgid="49" name="desert_2x" tilewidth="64" tileheight="64" spacing="2" margin="2">
+  <image source="desert_2x.png" width="530" height="398"/>
+ </tileset>
+ <tileset firstgid="97" name="buildings" tilewidth="64" tileheight="64">
+  <image source="buildings.png" width="256" height="256"/>
+ </tileset>
+ <tileset firstgid="113" name="buildings_misc" tilewidth="64" tileheight="64">
+  <image source="buildings_misc.png" width="448" height="260"/>
+ </tileset>
+ <tileset firstgid="141" name="big_meta_tiles" tilewidth="64" tileheight="64" spacing="2" margin="2">
+  <image source="big_meta_tiles.png" width="134" height="68"/>
+  <tile id="0">
+   <properties>
+    <property name="Collidable" value="True"/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer name="Tile Layer 1" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJztl21PwkAMgKsmKpj4CiIqbGjCABPk//86ekmX1Ka79raiX/zwZAncdg+9titzAHh18IY0SIUskW+6epjT/d71HwafyDrjUDn3uUSuBNdizc7gC9kb+zQOl1vkTnCvPKei330oiKdkY8TI41IP2L9lTc+pyKmvy1Aaclmya4RLyntPXWlxTR77TJxLXVbgq6uufNnAzzxesfWlLlvw1ZX3/LZs/TMyE7wozn8Ndz5Dzg0ugvaVOSnz7wF5zDBFboJceE72uX8U6MJz0oqZFr9IF2/Muur3t1xyddzmttelT68sIdXYglxyPd6KsdUrvXk7Jpca8rNUdK+0XKzZ4JS0Lu8Q3/dKkX0wsu9FxOnfxXZJ84o2m3t6DV/f9X7O5SZ3ORCyzmvw9RrZ28cKvGYkC/Z9ctbm7fSZp9fI3q65eGl7cT3w3KNckofnv1qUywT0GetJOZ++WPMc3/OUtXkEu8lxsg==
+  </data>
+ </layer>
+ <layer name="Tile Layer 2" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJzt0rEJACAMRNFbUdTS/dfQAa6wEDnxP0gXyC8i5Shr2oUb9eAeLbT82LIrqQW5unL+JOlnafFo8WjxaPFo8YZyWoDXTe0YEV4=
+  </data>
+ </layer>
+ <layer name="House" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJzt1LcNwEAQA8FvVd6b/iPxC2BKQNIOsNElF7EUAMBbNKo1daoP/jKo0TSpOfjLolZz29Qe/OVQp7ld6g7+gv9xG5Heh8ptRHofKrcR6X2o3EawDwC+5AH6cBQZ
+  </data>
+ </layer>
+ <layer name="House Extras" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJzt1DELgCAURWF/s+lWbkFoP7o7ODgoUSRKnA/O+rjTMwYAgH+wyimvltwoRyVgdmH0gMLe4aYr8h9tWdVW6c7b/xBVanQ+uAMAPV1ktxGo
+  </data>
+ </layer>
+ <objectgroup name="Objects" width="35" height="30">
+  <object name="SpawnPoint1" x="596" y="1669" width="258" height="146"/>
+  <object name="SpawnPoint2" x="1920" y="320" width="64" height="64"/>
+ </objectgroup>
+ <layer name="Meta" width="35" height="30">
+  <data encoding="base64" compression="zlib">
+   eJzllFEKwCAMQ3t/6J33K6OyxkTbbQERho1vJdbNzMFlw57RWJc5h7JEPqdZnrx2sKwqql9hYTX7H5RFxWHG9yX6hmTHg9oqlqi2miV7B3PuhBgWpnfKOfIXFvbNMPlWsKi0kwWdCez76cSC5pLJKpJZVgzL3ecNLFlPJYt6vlRKzcL2X8Uy80M4dvelE0uVurF8SRfTXMJu
+  </data>
+ </layer>
+</map>
